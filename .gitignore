@@ -149,5 +149,5 @@ client/dist/uploads/
 
 # Package lock files (keep only root level)
 # Note: client/package-lock.json is needed for Zeabur builds
-server/package-lock.json
+# server/package-lock.json - commented out, needed for Zeabur Dockerfile builds
 # client/package-lock.json - commented out, needed for deployment
