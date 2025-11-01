@@ -23,13 +23,14 @@ const __dirname = nodePath.dirname(fileURLToPath(import.meta.url));
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000; // 生产环境端口或本地开发端口
+const PORT = process.env.PORT || 8080; // 生产环境端口（Zeabur 默认 8080）或本地开发端口
 
 // 支持多个CORS源，包括生产环境的前端域名
 const corsOrigins = [
   process.env.CORS_ORIGIN,
-  "https://oldksports-web.zeabur.app",      // 当前前端域名
-  "https://oldksports-app.zeabur.app",      // 当前后端域名（允许自调用）
+  process.env.FRONTEND_SERVICE_URL,         // Zeabur 自动注入的前端服务 URL
+  "https://oldksports-web.zeabur.app",      // 当前前端域名（兼容）
+  "https://oldksports-app.zeabur.app",      // 当前后端域名（兼容）
   "https://oldksports.zeabur.app",          // 旧域名（兼容性）
   "https://oldksports-frontend.zeabur.app", // 旧域名（兼容性）
   "https://oldksports.com",                 // 未来自定义域名
@@ -361,13 +362,8 @@ app.delete("/api/admin/posts/clear", authenticateToken, async (req, res) => {
 });
 */
 
-// 提供前端静态文件（在所有API路由之后，SPA路由之前）
-app.use(express.static(nodePath.join(__dirname, 'public', 'dist')));
-
-// SPA 路由处理 - 所有未匹配的路由返回 index.html
-app.use((req, res) => {
-    res.sendFile(nodePath.join(__dirname, 'public', 'dist', 'index.html'));
-});
+// 前后端分离：不再提供前端静态文件服务
+// 前端由独立的前端服务提供
 
 // 启动服务器
 const startServer = async () => {
