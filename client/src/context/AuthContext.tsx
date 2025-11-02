@@ -212,10 +212,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error.response) {
         const status = error.response.status;
         const data = error.response.data;
-        if (status === 401 || status === 404) throw new Error('登录邮箱或密码错误');
-        if (status === 400) throw new Error('登录信息格式错误，请检查输入');
+        const backendMessage = data.message || data.error || '';
+        
+        // 区分不同的错误类型
+        if (status === 404) {
+          // 404 表示用户不存在
+          if (backendMessage.includes('用户不存在')) {
+            throw new Error('用户不存在，请先注册');
+          }
+          // 其他404错误也统一为密码错误（安全考虑，不暴露用户是否存在）
+          throw new Error('登录邮箱或密码错误');
+        }
+        
+        if (status === 400) {
+          // 400 可能是密码错误或格式错误
+          if (backendMessage.includes('密码错误') || backendMessage.includes('用户名或密码错误')) {
+            throw new Error('登录邮箱或密码错误');
+          }
+          // 使用后端返回的具体错误消息，如果没有则用默认消息
+          throw new Error(backendMessage || '登录信息格式错误，请检查输入');
+        }
+        
+        if (status === 401) {
+          // 401 通常是认证失败
+          throw new Error(backendMessage || '登录邮箱或密码错误');
+        }
+        
         if (status === 500) throw new Error('服务器暂时不可用，请稍后重试');
-        throw new Error(data.error || data.message || '登录失败，请重试');
+        throw new Error(backendMessage || '登录失败，请重试');
       } else if (error.request) {
         throw new Error('网络连接异常，请检查网络后重试');
       } else {
