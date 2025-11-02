@@ -123,7 +123,17 @@ async function fullMigration(db) {
     const statements = sqlContent
         .split(';')
         .map(stmt => stmt.trim())
-        .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
+        .filter(stmt => {
+            // 过滤掉空语句和纯注释语句
+            if (!stmt || stmt.length === 0) return false;
+            // 移除注释行，检查是否还有实际内容
+            const withoutComments = stmt
+                .split('\n')
+                .filter(line => !line.trim().startsWith('--'))
+                .join('\n')
+                .trim();
+            return withoutComments.length > 0;
+        });
     
     for (const statement of statements) {
         if (statement.toUpperCase().startsWith('CREATE TABLE')) {
