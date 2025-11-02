@@ -141,8 +141,15 @@ async function fullMigration(db) {
                              statement.match(/TABLE `?(\w+)`?/)?.[1];
             
             try {
+                // 在执行 SQL 前清理注释行
+                const cleanStatement = statement
+                    .split('\n')
+                    .filter(line => !line.trim().startsWith('--'))
+                    .join('\n')
+                    .trim();
+                
                 await new Promise((resolve, reject) => {
-                    db.query(statement, (err, result) => {
+                    db.query(cleanStatement, (err, result) => {
                         if (err) {
                             if (err.code === 'ER_TABLE_EXISTS_ERROR') {
                                 console.log(`⏭️  ${tableName} 表已存在，跳过`);
