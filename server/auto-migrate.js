@@ -30,11 +30,17 @@ export default async function autoMigrate() {
         const tablesExist = await checkTablesExist(db);
         
         if (tablesExist) {
-            console.log('✅ 数据库表已存在，执行兼容性迁移...');
+            console.log('⚠️  检测到数据库中有表，但可能不完整');
+            console.log('📦 执行完整迁移（创建缺失的表）...');
+            // 执行完整迁移，创建缺失的表（SQL 使用 IF NOT EXISTS，不会重复创建）
+            await fullMigration(db);
+            console.log('🔧 执行兼容性迁移（添加缺失字段）...');
+            // 然后执行兼容性迁移，添加缺失的字段
             await compatibilityMigration(db);
         } else {
-            console.log('📦 数据库表不存在，执行完整初始化...');
+            console.log('📦 数据库为空，执行完整初始化...');
             await fullMigration(db);
+            await compatibilityMigration(db);
         }
 
         console.log('✅ 数据库迁移完成');
