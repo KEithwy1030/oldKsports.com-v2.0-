@@ -17,7 +17,7 @@ router.get('/unread-count', authenticateToken, async (req, res) => {
         SUM(CASE WHEN type = 'message' THEN 1 ELSE 0 END) as message_count,
         SUM(CASE WHEN type = 'system' THEN 1 ELSE 0 END) as system_count
       FROM notifications 
-      WHERE user_id = ? AND is_read = FALSE
+      WHERE recipient_id = ? AND is_read = FALSE
     `;
     
     console.log('🔔 获取未读通知数量查询:', query);
@@ -56,7 +56,7 @@ router.get('/list', authenticateToken, async (req, res) => {
     const { type, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
     
-    let whereClause = 'WHERE n.user_id = ?';
+    let whereClause = 'WHERE n.recipient_id = ?';
     let queryParams = [userId];
     
     if (type && ['reply', 'mention', 'message', 'system'].includes(type)) {
@@ -67,9 +67,9 @@ router.get('/list', authenticateToken, async (req, res) => {
     const query = `
       SELECT 
         n.id,
-        n.user_id,
+        n.recipient_id,
         n.title,
-        n.message as content,
+        n.content,
         n.type,
         n.is_read,
         n.created_at
@@ -137,15 +137,15 @@ router.put('/mark-read', authenticateToken, async (req, res) => {
     if (notificationIds && Array.isArray(notificationIds)) {
       // 标记指定通知为已读
       const placeholders = notificationIds.map(() => '?').join(',');
-      query = `UPDATE notifications SET is_read = TRUE WHERE id IN (${placeholders}) AND user_id = ?`;
+      query = `UPDATE notifications SET is_read = TRUE WHERE id IN (${placeholders}) AND recipient_id = ?`;
       queryParams = [...notificationIds, userId];
     } else if (type) {
       // 标记某类型的所有通知为已读
-      query = 'UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND type = ?';
+      query = 'UPDATE notifications SET is_read = TRUE WHERE recipient_id = ? AND type = ?';
       queryParams = [userId, type];
     } else {
       // 标记所有通知为已读
-      query = 'UPDATE notifications SET is_read = TRUE WHERE user_id = ?';
+      query = 'UPDATE notifications SET is_read = TRUE WHERE recipient_id = ?';
       queryParams = [userId];
     }
     
@@ -178,7 +178,7 @@ router.post('/create', authenticateToken, async (req, res) => {
     }
     
     const query = `
-      INSERT INTO notifications (user_id, title, message, type, is_read)
+      INSERT INTO notifications (recipient_id, title, content, type, is_read)
       VALUES (?, ?, ?, ?, ?)
     `;
     
@@ -206,7 +206,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const notificationId = req.params.id;
     
-    const query = 'DELETE FROM notifications WHERE id = ? AND user_id = ?';
+    const query = 'DELETE FROM notifications WHERE id = ? AND recipient_id = ?';
     
     getDb().query(query, [notificationId, userId], (err, result) => {
       if (err) {
@@ -257,7 +257,7 @@ router.post('/send-test', authenticateToken, async (req, res) => {
     for (const user of users) {
       try {
         const query = `
-          INSERT INTO notifications (user_id, title, message, type, is_read)
+          INSERT INTO notifications (recipient_id, title, content, type, is_read)
           VALUES (?, ?, ?, ?, ?)
         `;
         
@@ -335,7 +335,7 @@ router.post('/send-welcome', authenticateToken, async (req, res) => {
     for (const user of users) {
       try {
         const query = `
-          INSERT INTO notifications (user_id, title, message, type, is_read)
+          INSERT INTO notifications (recipient_id, title, content, type, is_read)
           VALUES (?, ?, ?, ?, ?)
         `;
         

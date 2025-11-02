@@ -108,7 +108,7 @@ class NotificationService {
       }
 
       const query = `
-        INSERT INTO notifications (user_id, title, message, type, is_read)
+        INSERT INTO notifications (recipient_id, title, content, type, is_read)
         VALUES (?, ?, ?, ?, ?)
       `;
 
