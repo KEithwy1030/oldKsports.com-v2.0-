@@ -136,18 +136,20 @@ async function fullMigration(db) {
         });
     
     for (const statement of statements) {
-        if (statement.toUpperCase().startsWith('CREATE TABLE')) {
-            const tableName = statement.match(/IF NOT EXISTS `?(\w+)`?/)?.[1] || 
-                             statement.match(/TABLE `?(\w+)`?/)?.[1];
+        // 先清理注释行
+        const cleanStatement = statement
+            .split('\n')
+            .filter(line => !line.trim().startsWith('--'))
+            .join('\n')
+            .trim();
+        
+        // 检查清理后的语句是否是 CREATE TABLE
+        if (cleanStatement.toUpperCase().startsWith('CREATE TABLE')) {
+            // 从清理后的语句中提取表名
+            const tableName = cleanStatement.match(/IF NOT EXISTS `?(\w+)`?/)?.[1] || 
+                             cleanStatement.match(/TABLE `?(\w+)`?/)?.[1];
             
             try {
-                // 在执行 SQL 前清理注释行
-                const cleanStatement = statement
-                    .split('\n')
-                    .filter(line => !line.trim().startsWith('--'))
-                    .join('\n')
-                    .trim();
-                
                 await new Promise((resolve, reject) => {
                     db.query(cleanStatement, (err, result) => {
                         if (err) {
