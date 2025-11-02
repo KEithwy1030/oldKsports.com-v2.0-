@@ -140,6 +140,12 @@ fast_port_manager.py
 *.bak
 *.tmp
 
+# Database dumps (should not be committed - contains user data)
+oldksports.sql
+oldksports_v2.sql
+zeabur.sql
+*.sql.dump
+
 # Upload directories (keep structure but not files)
 server/uploads/
 server/public/uploads/
