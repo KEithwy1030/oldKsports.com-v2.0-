@@ -17,29 +17,61 @@ import nodePath from "path";
 import fs from "fs";
 import { fileURLToPath } from 'url';
 import { getDb } from "./db.js";
+import crypto from 'crypto';
 
 const __dirname = nodePath.dirname(fileURLToPath(import.meta.url));
 
 dotenv.config();
 
+// 检查并生成 JWT_SECRET（如果未设置）
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️  JWT_SECRET 未设置，正在生成临时密钥...');
+  console.warn('⚠️  警告：请在 Zeabur 后台设置 JWT_SECRET 环境变量，否则每次重启都会改变！');
+  // 生成一个随机密钥（32字节，base64编码后约44字符）
+  process.env.JWT_SECRET = crypto.randomBytes(32).toString('base64');
+  console.log('✅ 已生成临时 JWT_SECRET（请尽快在 Zeabur 后台设置固定值）');
+} else {
+  console.log('✅ JWT_SECRET 已配置');
+}
+
 const app = express();
 const PORT = process.env.PORT || 8080; // 生产环境端口（Zeabur 默认 8080）或本地开发端口
 
 // 支持多个CORS源，包括生产环境的前端域名
-const corsOrigins = [
-  process.env.CORS_ORIGIN,
-  process.env.FRONTEND_SERVICE_URL,         // Zeabur 自动注入的前端服务 URL
-  "https://oldksports-web.zeabur.app",      // 当前前端域名（兼容）
-  "https://oldksports-app.zeabur.app",      // 当前后端域名（兼容）
-  "https://oldksports.zeabur.app",          // 旧域名（兼容性）
-  "https://oldksports-frontend.zeabur.app", // 旧域名（兼容性）
-  "https://oldksports.com",                 // 未来自定义域名
-  "http://localhost:5173",                  // 本地开发
-  "http://localhost:3000"                   // 本地开发备用端口
-].filter(Boolean); // 过滤掉undefined值
+// Zeabur 会自动注入 FRONTEND_SERVICE_URL 环境变量
+const corsOrigins = [];
+
+// 添加 Zeabur 自动注入的前端服务 URL
+if (process.env.FRONTEND_SERVICE_URL) {
+  corsOrigins.push(process.env.FRONTEND_SERVICE_URL);
+  // 确保 HTTPS 版本也被添加
+  const httpsUrl = process.env.FRONTEND_SERVICE_URL.replace('http://', 'https://');
+  if (httpsUrl !== process.env.FRONTEND_SERVICE_URL) {
+    corsOrigins.push(httpsUrl);
+  }
+}
+
+// 添加自定义 CORS 源（如果设置了）
+if (process.env.CORS_ORIGIN) {
+  corsOrigins.push(process.env.CORS_ORIGIN);
+}
+
+// 如果设置了自定义域名，也添加到允许列表
+if (process.env.CUSTOM_DOMAIN) {
+  corsOrigins.push(
+    `https://${process.env.CUSTOM_DOMAIN}`,
+    `http://${process.env.CUSTOM_DOMAIN}`
+  );
+}
+
+// 本地开发环境支持
+if (process.env.NODE_ENV === 'development') {
+  corsOrigins.push("http://localhost:5173", "http://localhost:3000");
+}
 
 console.log('CORS Origins:', corsOrigins);
 console.log('CORS Environment Variable:', process.env.CORS_ORIGIN);
+console.log('Frontend Service URL:', process.env.FRONTEND_SERVICE_URL);
 
 app.use(cors({ 
   origin: (origin, callback) => {
@@ -368,26 +400,31 @@ app.delete("/api/admin/posts/clear", authenticateToken, async (req, res) => {
 // 启动服务器
 const startServer = async () => {
     try {
-        // 初始化数据库连接
+        // 初始化数据库连接（不阻塞启动）
+        console.log('初始化数据库连接...');
         const db = getDb();
         
-        // 先执行数据库迁移
-        console.log('执行数据库迁移...');
-        try {
-            const autoMigrate = await import('./auto-migrate.js');
-            await autoMigrate.default();
-        } catch (migrateError) {
-            console.warn('数据库迁移跳过:', migrateError.message);
-            console.log('继续启动服务器...');
-        }
+        // 异步执行数据库迁移（不阻塞服务启动）
+        console.log('准备执行数据库迁移（异步）...');
+        setTimeout(async () => {
+            try {
+                const autoMigrate = await import('./auto-migrate.js');
+                await autoMigrate.default();
+            } catch (migrateError) {
+                console.warn('⚠️  数据库迁移失败，将在后续重试:', migrateError.message);
+                // 不退出，允许服务继续运行
+            }
+        }, 2000); // 延迟2秒执行，给数据库连接时间
         
-        // 启动服务器
+        // 立即启动服务器（不等待数据库连接）
         app.listen(PORT, () => {
-            console.log(`Backend server is running on port ${PORT}!`);
-            console.log("Database: MySQL - 连接成功，迁移完成");
+            console.log(`✅ Backend server is running on port ${PORT}!`);
+            console.log('📝 Server will continue running even if database is temporarily unavailable');
+            console.log('🔄 Database connection will be retried automatically');
         });
     } catch (error) {
-        console.error('服务器启动失败:', error);
+        console.error('❌ 服务器启动失败:', error);
+        // 只在启动服务器本身失败时才退出
         process.exit(1);
     }
 };

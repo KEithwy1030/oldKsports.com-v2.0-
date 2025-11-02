@@ -61,7 +61,10 @@ const connectionConfig = {
   // 连接池配置
   connectionLimit: 10,          // 最大连接数
   queueLimit: 0,                // 无限制队列
-  waitForConnections: true      // 等待可用连接
+  waitForConnections: true,     // 等待可用连接
+  // 重试配置
+  maxRetries: 5,                // 最大重试次数
+  retryDelay: 3000              // 重试延迟（毫秒）
 };
 
 console.log('Connection config:', {
@@ -71,6 +74,8 @@ console.log('Connection config:', {
 
 // 创建连接池
 let db = null;
+let isDbConnected = false;
+let connectionRetryTimer = null;
 
 export const getDb = () => {
   if (!db) {
@@ -78,38 +83,46 @@ export const getDb = () => {
     try {
       db = mysql.createPool(connectionConfig);
       
-      // 测试连接并添加重试机制
-      const testConnection = (retryCount = 0) => {
-        db.getConnection((error, connection) => {
-          if (error) {
-            console.error(`❌ Database connection attempt ${retryCount + 1} failed:`, error.message);
-            
-            if (retryCount < connectionConfig.maxRetries) {
-              console.log(`🔄 Retrying connection in ${connectionConfig.retryDelay}ms...`);
-              setTimeout(() => testConnection(retryCount + 1), connectionConfig.retryDelay);
-            } else {
-              console.error('💥 FATAL: All database connection attempts failed');
-              console.error('Final error:', error);
-              process.exit(1);
-            }
-          } else {
-            console.log('✅ Successfully connected to the database');
-            console.log('📊 Connection pool created successfully');
-            connection.release();
-          }
-        });
-      };
-      
-      // 开始测试连接
-      testConnection();
-      
+      // 异步测试连接，不阻塞服务启动
+      testDbConnectionAsync();
     } catch (error) {
-      console.error('💥 FATAL: Error creating database pool:', error);
-      process.exit(1);
+      console.error('❌ Error creating database pool:', error);
+      // 不退出进程，允许服务启动，后续会在请求时重试
     }
   }
   return db;
 };
+
+// 异步测试数据库连接（不阻塞服务启动）
+const testDbConnectionAsync = (retryCount = 0) => {
+  if (!db) return;
+  
+  db.getConnection((error, connection) => {
+    if (error) {
+      console.error(`❌ Database connection attempt ${retryCount + 1}/${connectionConfig.maxRetries} failed:`, error.message);
+      
+      if (retryCount < connectionConfig.maxRetries - 1) {
+        console.log(`🔄 Retrying connection in ${connectionConfig.retryDelay}ms...`);
+        connectionRetryTimer = setTimeout(() => {
+          testDbConnectionAsync(retryCount + 1);
+        }, connectionConfig.retryDelay);
+      } else {
+        console.error('⚠️  Database connection failed after all retries');
+        console.error('⚠️  Server will continue running, but database operations may fail');
+        console.error('⚠️  Connection will be retried automatically on next database query');
+        isDbConnected = false;
+      }
+    } else {
+      console.log('✅ Successfully connected to the database');
+      console.log('📊 Connection pool created successfully');
+      isDbConnected = true;
+      connection.release();
+    }
+  });
+};
+
+// 导出连接状态检查函数
+export const isDatabaseConnected = () => isDbConnected;
 
 // 为了向后兼容，也导出db
 export { getDb as db };
