@@ -9,6 +9,9 @@ WORKDIR /app
 COPY server/package*.json ./
 RUN npm ci --only=production
 
+# 复制数据库初始化脚本（供自动迁移脚本使用）
+COPY database_init_schema.sql ../
+
 # 复制后端代码
 COPY server/ ./
 
