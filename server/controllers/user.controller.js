@@ -311,3 +311,67 @@ export const getUserInfo = async (req, res) => {
         res.status(500).json({ success: false, error: 'Failed to get user info' });
     }
 };
+
+// 获取今日在线用户列表
+export const getTodayOnlineUsers = async (req, res) => {
+    try {
+        // 获取最近24小时内登录的用户（视为在线）
+        const query = `
+            SELECT 
+                id,
+                username,
+                avatar,
+                points,
+                role,
+                roles,
+                last_login
+            FROM users 
+            WHERE last_login IS NOT NULL 
+            AND TIMESTAMPDIFF(HOUR, last_login, NOW()) <= 24
+            ORDER BY last_login DESC
+            LIMIT 20
+        `;
+        
+        const rows = await new Promise((resolve, reject) => {
+            getDb().query(query, [], (err, results) => {
+                if (err) reject(err);
+                else resolve(results);
+            });
+        });
+        
+        // 计算总数
+        const countQuery = `
+            SELECT COUNT(*) AS total 
+            FROM users 
+            WHERE last_login IS NOT NULL 
+            AND TIMESTAMPDIFF(HOUR, last_login, NOW()) <= 24
+        `;
+        
+        const countRows = await new Promise((resolve, reject) => {
+            getDb().query(countQuery, [], (err, results) => {
+                if (err) reject(err);
+                else resolve(results);
+            });
+        });
+        
+        const totalOnline = countRows[0]?.total || 0;
+        
+        res.json({
+            success: true,
+            data: {
+                users: rows || [],
+                totalOnline: totalOnline
+            }
+        });
+    } catch (error) {
+        console.error('Error getting today online users:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to get online users',
+            data: {
+                users: [],
+                totalOnline: 0
+            }
+        });
+    }
+};

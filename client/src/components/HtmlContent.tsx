@@ -6,16 +6,28 @@ import { fixHistoricalImageUrls, needsImageUrlFix } from '../utils/imageUrlFixer
 interface HtmlContentProps {
   content: string;
   className?: string;
+  hideImages?: boolean;
 }
 
-const HtmlContent: React.FC<HtmlContentProps> = ({ content, className }) => {
+const HtmlContent: React.FC<HtmlContentProps> = ({ content, className, hideImages = false }) => {
   // 检查是否需要修复历史图片URL
   const needsFix = needsImageUrlFix(content);
   console.log('🔧 HtmlContent 是否需要修复:', needsFix);
   
   // 先修复历史图片URL，再修复图片URL，确保图片能正确显示
-  const historicalFixed = needsFix ? fixHistoricalImageUrls(content) : content;
-  const fixedContent = fixImageUrlsInContent(historicalFixed);
+  let processedContent = needsFix ? fixHistoricalImageUrls(content) : content;
+  
+  // 如果需要隐藏图片，移除所有img标签和图片容器
+  if (hideImages) {
+    // 移除所有的<img>标签
+    processedContent = processedContent.replace(/<img[^>]*>/gi, '');
+    // 移除所有的图片网格容器
+    processedContent = processedContent.replace(/<div class="post-images-grid"[^>]*>[\s\S]*?<\/div>/gi, '');
+    // 移除所有weibo-grid容器
+    processedContent = processedContent.replace(/<div class="weibo-grid"[^>]*>[\s\S]*?<\/div>/gi, '');
+  }
+  
+  const fixedContent = fixImageUrlsInContent(processedContent);
   
   // 使用DOMPurify清理HTML内容，防止XSS攻击
   const sanitizedContent = DOMPurify.sanitize(fixedContent, {

@@ -47,7 +47,7 @@ router.get('/', async (req, res) => {
   try {
     const merchants = await new Promise((resolve, reject) => {
       getDb().query(
-        'SELECT id, name, description, category, contact_info, website, logo_url, rating, created_at FROM merchants WHERE status = "active" ORDER BY created_at DESC',
+        'SELECT id, name, description, category, contact_info, created_at FROM merchants ORDER BY created_at DESC',
         (err, results) => {
           if (err) reject(err);
           else resolve(results);

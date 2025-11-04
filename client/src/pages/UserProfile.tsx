@@ -478,9 +478,14 @@ const UserProfile: React.FC = () => {
         })
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        console.log('更新成功:', result);
+      // 一些后端可能返回 204(No Content) 也代表成功；同时避免对空响应强制 json()
+      if (response.ok || response.status === 204) {
+        let result: any = null;
+        try {
+          // 尝试解析 JSON（若无内容会抛错，忽略即可）
+          result = await response.json();
+        } catch {}
+        console.log('更新成功:', result ?? { status: response.status });
         
         // 更新本地用户数据
         const updatedUser = { ...user, roles: selectedRoles };
@@ -704,11 +709,11 @@ const UserProfile: React.FC = () => {
       100;
 
   return (
-    <div className="min-h-screen bg-gradient-radial from-slate-700 to-slate-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gradient-radial dark:from-slate-700 dark:to-slate-900">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {/* Profile Header */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 p-6 mb-8">
+        <div className="bg-surface-variant/50 backdrop-blur-sm rounded-lg border border-border-surface p-6 mb-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-6">
             <div className="relative">
               <RealTimeAvatar 
@@ -749,18 +754,18 @@ const UserProfile: React.FC = () => {
             
             <div className="flex-1">
               <div className="flex items-center space-x-3 mb-2">
-                <h1 className="text-2xl font-bold text-white">{user.username}</h1>
+                <h1 className="text-2xl font-bold text-on-surface">{user.username}</h1>
                 <UserLevelBadge level={user.level} />
               </div>
               
-              <p className="text-gray-300 mb-3">{user.email}</p>
+              <p className="text-on-surface-variant mb-3">{user.email}</p>
               
               {/* User Roles */}
               <div className="mb-3">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-1">
-                    <Briefcase className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-400">行业身份</span>
+                    <Briefcase className="w-4 h-4 text-on-surface-tertiary" />
+                    <span className="text-sm text-on-surface-tertiary">行业身份</span>
                   </div>
                   <button
                     onClick={() => setShowRoleEditor(!showRoleEditor)}
@@ -787,7 +792,7 @@ const UserProfile: React.FC = () => {
                             }}
                             className="w-4 h-4 text-emerald-600 bg-gray-700 border-gray-600 rounded focus:ring-emerald-500 focus:ring-2"
                           />
-                          <span className="text-sm text-gray-300">{role.label}</span>
+                          <span className="text-sm text-on-surface-variant">{role.label}</span>
                         </label>
                       ))}
                     </div>
@@ -831,7 +836,7 @@ const UserProfile: React.FC = () => {
                 )}
               </div>
               
-              <div className="flex items-center space-x-6 text-sm text-gray-400">
+              <div className="flex items-center space-x-6 text-sm text-on-surface-tertiary">
                 <div className="flex items-center space-x-1">
                   <Calendar className="w-4 h-4" />
                   <span>加入时间：{new Date(user.joinDate).toLocaleDateString('zh-CN')}</span>
@@ -850,8 +855,8 @@ const UserProfile: React.FC = () => {
             </div>
             
             {/* Daily Check-in Card */}
-            <div className="mt-6 lg:mt-0 bg-white/5 backdrop-blur-sm rounded-lg border border-white/20 p-4 lg:w-56">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+            <div className="mt-6 lg:mt-0 bg-surface-tertiary/30 backdrop-blur-sm rounded-lg border border-border-surface p-4 lg:w-56">
+                              <h3 className="text-lg font-semibold text-on-surface mb-4 flex items-center">
                 <CheckCircle className="w-5 h-5 text-emerald-400 mr-2" />
                 每日签到
               </h3>
@@ -861,7 +866,7 @@ const UserProfile: React.FC = () => {
                   <CheckCircle className={`w-6 h-6 ${hasCheckedInToday ? 'text-emerald-400' : 'text-gray-400'}`} />
                 </div>
                 
-                <p className="text-gray-300 mb-3 text-sm">
+                <p className="text-on-surface-variant mb-3 text-sm">
                   {hasCheckedInToday ? '今日已签到' : '完成签到获得积分奖励'}
                 </p>
                 
@@ -888,48 +893,31 @@ const UserProfile: React.FC = () => {
           isSogouBrowser={isSogouBrowser}
         >
             <div 
-              className="bg-slate-800 rounded-xl border border-white border-opacity-20 w-full max-w-3xl shadow-2xl max-h-screen overflow-y-auto"
+              className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-white/20 w-full max-w-3xl shadow-2xl max-h-screen overflow-y-auto"
               style={{
-                backgroundColor: isSogouBrowser ? 'rgb(30, 41, 59)' : 'rgba(30, 41, 59, 0.95)',
                 maxHeight: '85vh',
                 width: '100%',
                 maxWidth: '768px',
                 borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: isSogouBrowser ? 
-                  '0 25px 50px -12px rgba(0, 0, 0, 0.8)' : 
-                  '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                ...(isSogouBrowser && {
+                  backgroundColor: document.documentElement.getAttribute('data-theme') === 'dark' 
+                    ? 'rgb(30, 41, 59)' 
+                    : 'rgba(255, 255, 255, 0.95)',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)'
+                })
               }}
               onClick={(e) => e.stopPropagation()}
             >
               <div 
-                className="flex items-center justify-between p-6 border-b border-white border-opacity-20"
-                style={{
-                  borderBottomColor: 'rgba(255, 255, 255, 0.2)',
-                  borderBottomWidth: '1px',
-                  borderBottomStyle: 'solid'
-                }}
+                className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-white/20"
               >
-                <h3 className="text-xl font-bold text-white flex items-center">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
                   <Camera className="w-6 h-6 mr-3 text-emerald-400" />
                   修改头像
                 </h3>
                 <button
                   onClick={handleAvatarCancel}
-                  className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg"
-                  style={{
-                    padding: '4px',
-                    borderRadius: '8px',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -941,7 +929,7 @@ const UserProfile: React.FC = () => {
                 {/* 头像预览区域 */}
                 <div className="flex justify-center py-6">
                   <div className="relative">
-                    <div className="w-32 h-32 rounded-full border-4 border-emerald-500/30 overflow-hidden bg-slate-700/50 shadow-xl">
+                    <div className="w-32 h-32 rounded-full border-4 border-emerald-500/30 overflow-hidden bg-gray-200 dark:bg-slate-700/50 shadow-xl">
                       {croppedImageUrl ? (
                         <img
                           src={croppedImageUrl}
@@ -971,10 +959,10 @@ const UserProfile: React.FC = () => {
                 {/* 文件上传区域 */}
                 {!showCropper && !croppedImageUrl && (
                   <div className="space-y-4">
-                    <div className="border-2 border-dashed border-white/30 rounded-lg p-8 text-center hover:border-emerald-400/50 transition-colors bg-slate-700/30">
-                      <Upload className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-white font-medium mb-2">上传头像图片</p>
-                      <p className="text-gray-400 text-sm mb-6">支持 JPG、PNG、GIF 格式，最大 5MB</p>
+                    <div className="border-2 border-dashed border-gray-300 dark:border-white/30 rounded-lg p-8 text-center hover:border-emerald-400/50 transition-colors bg-gray-50 dark:bg-slate-700/30">
+                      <Upload className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                      <p className="text-gray-900 dark:text-white font-medium mb-2">上传头像图片</p>
+                      <p className="text-gray-600 dark:text-gray-400 text-sm mb-6">支持 JPG、PNG、GIF 格式，最大 5MB</p>
                       <label className="inline-flex items-center bg-emerald-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-emerald-700 transition-colors cursor-pointer shadow-lg hover:shadow-xl">
                         <Camera className="w-5 h-5 mr-2" />
                         选择图片
@@ -993,11 +981,11 @@ const UserProfile: React.FC = () => {
                 {showCropper && imageSrc && (
                   <div className="space-y-4">
                     <div className="text-center">
-                      <h4 className="text-white font-medium mb-2 flex items-center justify-center">
+                      <h4 className="text-gray-900 dark:text-white font-medium mb-2 flex items-center justify-center">
                         <Crop className="w-5 h-5 mr-2 text-emerald-400" />
                         调整头像区域
                       </h4>
-                      <p className="text-gray-400 text-sm">拖拽调整裁剪区域，建议使用正方形比例</p>
+                      <p className="text-gray-600 dark:text-gray-400 text-sm">拖拽调整裁剪区域，建议使用正方形比例</p>
                     </div>
                     
                     {/* 添加一个固定的裁剪区域 */}
@@ -1009,7 +997,7 @@ const UserProfile: React.FC = () => {
                       </div>
                     </div>
                     
-                    <div className="bg-black/50 rounded-lg p-4">
+                    <div className="bg-gray-900/50 dark:bg-black/50 rounded-lg p-4">
                       <div className="flex justify-center">
                         <AvatarCropper
                           imageSrc={imageSrc}
@@ -1050,8 +1038,8 @@ const UserProfile: React.FC = () => {
                 {croppedImageUrl && !showCropper && (
                   <div className="space-y-4">
                     <div className="text-center">
-                      <h4 className="text-white font-medium mb-2">头像预览</h4>
-                      <p className="text-gray-400 text-sm">确认使用这张图片作为头像吗？</p>
+                      <h4 className="text-gray-900 dark:text-white font-medium mb-2">头像预览</h4>
+                      <p className="text-gray-600 dark:text-gray-400 text-sm">确认使用这张图片作为头像吗？</p>
                     </div>
                     
                     <div className="flex justify-center space-x-3">
@@ -1073,11 +1061,11 @@ const UserProfile: React.FC = () => {
               </div>
               
               {/* 底部操作按钮 */}
-              <div className="flex space-x-3 p-6 border-t border-white/20">
+              <div className="flex space-x-3 p-6 border-t border-gray-200 dark:border-white/20">
                 <button
                   onClick={handleAvatarCancel}
                   disabled={isUploading}
-                  className="flex-1 px-4 py-3 border border-white/30 text-gray-300 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50 font-medium hover:border-emerald-400/50"
+                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-white/30 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors disabled:opacity-50 font-medium hover:border-emerald-400/50"
                 >
                   取消
                 </button>
@@ -1143,8 +1131,8 @@ const UserProfile: React.FC = () => {
         )}
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Points & Level Progress */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 p-6">
-            <h2 className="text-xl font-semibold text-white mb-4 flex items-center">
+          <div className="bg-surface-variant/50 backdrop-blur-sm rounded-lg border border-border-surface p-6">
+            <h2 className="text-xl font-semibold text-on-surface mb-4 flex items-center">
               <Trophy className="w-5 h-5 text-emerald-400 mr-2" />
               积分与等级
             </h2>
@@ -1152,33 +1140,33 @@ const UserProfile: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-300">当前积分</span>
+                  <span className="text-sm font-medium text-on-surface-variant">当前积分</span>
                   <span className="text-lg font-bold text-emerald-400">{user.points}</span>
                 </div>
                 
                 {pointsToNext > 0 ? (
                   <>
-                    <div className="w-full bg-white/20 rounded-full h-2 mb-2">
+                    <div className="w-full bg-surface-tertiary rounded-full h-2 mb-2">
                       <div
                         className="bg-emerald-400 h-2 rounded-full transition-all duration-300"
                         style={{ width: `${Math.min(progressPercentage, 100)}%` }}
                       ></div>
                     </div>
-                    <p className="text-sm text-gray-300">
+                    <p className="text-sm text-on-surface-variant">
                       距离 <span className="font-semibold" style={{ color: USER_LEVELS[nextLevelIndex]?.color }}>{USER_LEVELS[nextLevelIndex]?.name}</span> 还需 <span className="font-semibold text-emerald-400">{pointsToNext}</span> 积分
                     </p>
                   </>
                 ) : (
                   <div className="text-center py-4">
                     <div className="text-lg font-bold text-yellow-400 mb-2">🎉 恭喜达到最高等级！</div>
-                    <div className="text-sm text-gray-300">您已是 <span className="font-semibold" style={{ color: user.level?.color }}>{user.level?.name}</span></div>
+                    <div className="text-sm text-on-surface-variant">您已是 <span className="font-semibold" style={{ color: user.level?.color }}>{user.level?.name}</span></div>
                   </div>
                 )}
               </div>
               
-              <div className="pt-4 border-t border-white/20">
-                <h3 className="text-sm font-medium text-white mb-2">积分获取方式</h3>
-                <div className="space-y-1 text-sm text-gray-300">
+              <div className="pt-4 border-t border-border-surface">
+                <h3 className="text-sm font-medium text-on-surface mb-2">积分获取方式</h3>
+                <div className="space-y-1 text-sm text-on-surface-variant">
                   <div className="flex justify-between">
                     <span>每日签到</span>
                     <span className="text-emerald-400">+{POINTS_SYSTEM.DAILY_CHECKIN} 积分</span>
@@ -1205,21 +1193,21 @@ const UserProfile: React.FC = () => {
           </div>
 
           {/* Activity Stats */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 p-6">
-            <h2 className="text-xl font-semibold text-white mb-4 flex items-center">
+          <div className="bg-surface-variant/50 backdrop-blur-sm rounded-lg border border-border-surface p-6">
+            <h2 className="text-xl font-semibold text-on-surface mb-4 flex items-center">
               <MessageSquare className="w-5 h-5 text-emerald-400 mr-2" />
               活动统计
             </h2>
             
             <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-4 bg-white/10 rounded-lg border border-white/20">
+              <div className="text-center p-4 bg-surface-tertiary/30 rounded-lg border border-border-surface">
                 <div className="text-2xl font-bold text-emerald-400 mb-1">
                   {isBackendAvailable ? userStats.totalPosts : 
                     forumPosts.filter(post => post.author?.id === user.id || post.author?.username === user.username).length}
                 </div>
-                <div className="text-sm text-gray-300">发帖数量</div>
+                <div className="text-sm text-on-surface-variant">发帖数量</div>
               </div>
-              <div className="text-center p-4 bg-white/10 rounded-lg border border-white/20">
+              <div className="text-center p-4 bg-surface-tertiary/30 rounded-lg border border-border-surface">
                 <div className="text-2xl font-bold text-emerald-400 mb-1">
                   {isBackendAvailable ? userStats.totalReplies : 
                     forumPosts.reduce((total, post) => {
@@ -1228,24 +1216,24 @@ const UserProfile: React.FC = () => {
                       ).length || 0);
                     }, 0)}
                 </div>
-                <div className="text-sm text-gray-300">回复数量</div>
+                <div className="text-sm text-on-surface-variant">回复数量</div>
               </div>
-              <div className="text-center p-4 bg-white/10 rounded-lg border border-white/20 col-span-2">
+              <div className="text-center p-4 bg-surface-tertiary/30 rounded-lg border border-border-surface col-span-2">
                 <div className="text-2xl font-bold text-emerald-400 mb-1">
                   {isBackendAvailable ? userStats.consecutiveCheckins : (user.consecutiveCheckins || 0)}
                 </div>
-                <div className="text-sm text-gray-300">连续签到</div>
+                <div className="text-sm text-on-surface-variant">连续签到</div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Premium Membership Placeholder */}
-        <div className="mt-8 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 p-8">
+        <div className="mt-8 bg-surface-variant/50 backdrop-blur-sm rounded-lg border border-border-surface p-8">
           <div className="text-center">
             <Star className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-semibold text-white mb-2">高级会员</h2>
-            <p className="text-gray-300 mb-6">
+            <h2 className="text-2xl font-semibold text-on-surface mb-2">高级会员</h2>
+            <p className="text-on-surface-variant mb-6">
               升级高级会员，享受更多专属权益和功能
             </p>
             
@@ -1276,13 +1264,13 @@ const UserProfile: React.FC = () => {
               )}
               <button
                 disabled
-                className="bg-white/20 text-gray-400 px-8 py-3 rounded-lg font-semibold cursor-not-allowed"
+                className="bg-surface-tertiary/30 text-on-surface-tertiary px-8 py-3 rounded-lg font-semibold cursor-not-allowed border border-border-surface"
               >
                 升级高级会员 (即将推出)
               </button>
               <button
                 disabled
-                className="border border-white/30 text-gray-400 px-8 py-3 rounded-lg font-semibold cursor-not-allowed"
+                className="border border-border-surface text-on-surface-tertiary px-8 py-3 rounded-lg font-semibold cursor-not-allowed"
               >
                 <CreditCard className="w-5 h-5 mr-2 inline" />
                 购买积分 (即将推出)

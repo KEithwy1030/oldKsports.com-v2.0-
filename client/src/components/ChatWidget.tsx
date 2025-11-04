@@ -16,7 +16,6 @@ interface ChatMessage {
 
 interface ChatUser {
   id: number;
-  user_id?: string;  // 添加user_id属性
   username: string;
   avatar?: string;
   last_message: string;
@@ -26,13 +25,12 @@ interface ChatUser {
 
 const ChatWidget: React.FC = () => {
   const { user } = useAuth();
-  const { isOpen, selectedUserId, closeChat, toggleChat } = useChat();
+  const { isOpen, selectedUserId, selectedUserInfo, totalUnreadCount, setTotalUnreadCount, closeChat, toggleChat } = useChat();
   const [isMinimized, setIsMinimized] = useState(false);
   const [chatUsers, setChatUsers] = useState<ChatUser[]>([]);
   const [localSelectedUserId, setLocalSelectedUserId] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [totalUnreadCount, setTotalUnreadCount] = useState(0);
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatWidgetRef = useRef<HTMLDivElement>(null);
@@ -40,13 +38,13 @@ const ChatWidget: React.FC = () => {
   // 当选择用户时清除未读数字（避免无限循环）
   const clearUnreadForUser = useCallback((userId: number) => {
     setChatUsers(prev => {
-      const targetUser = prev.find(u => (u.user_id || u.id) === userId);
+      const targetUser = prev.find(u => u.id === userId);
       if (targetUser && targetUser.unread_count > 0) {
         console.log('🔥 清除用户未读数字:', targetUser.username, '数量:', targetUser.unread_count);
         
         // 清除该用户的未读数字（总数会在useEffect中自动重新计算）
         return prev.map(u => 
-          (u.user_id || u.id) === userId 
+          u.id === userId 
             ? { ...u, unread_count: 0 } 
             : u
         );
@@ -65,7 +63,8 @@ const ChatWidget: React.FC = () => {
     console.log('🔥 标记消息已读:', userId);
     
     try {
-      await fetch(`/api/messages/mark-read/${userId}`, {
+      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      await fetch(`${apiUrl}/messages/mark-read/${userId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('oldksports_auth_token')}`
@@ -103,15 +102,34 @@ const ChatWidget: React.FC = () => {
     const total = chatUsers.reduce((sum, u) => sum + (u.unread_count || 0), 0);
     setTotalUnreadCount(total);
     console.log('🔥 根据用户列表重新计算总未读数:', total);
-  }, [chatUsers]);
+  }, [chatUsers, setTotalUnreadCount]);
 
   // 同步外部选中的用户ID
   useEffect(() => {
     if (selectedUserId && selectedUserId !== localSelectedUserId) {
       setLocalSelectedUserId(selectedUserId);
       clearUnreadForUser(selectedUserId);
+      
+      // 如果该用户在chatUsers中不存在，使用selectedUserInfo添加
+      if (selectedUserInfo) {
+        setChatUsers(prev => {
+          const existingUser = prev.find(u => u.id === selectedUserId);
+          if (!existingUser) {
+            console.log('🔥 添加新用户到聊天列表:', selectedUserInfo);
+            return [...prev, {
+              id: selectedUserInfo.id,
+              username: selectedUserInfo.username,
+              avatar: selectedUserInfo.avatar,
+              last_message: '',
+              last_message_time: new Date().toISOString(),
+              unread_count: 0
+            }];
+          }
+          return prev;
+        });
+      }
     }
-  }, [selectedUserId, localSelectedUserId]); // 移除 clearUnreadForUser 依赖
+  }, [selectedUserId, selectedUserInfo, localSelectedUserId, clearUnreadForUser]);
 
   // 滚动到底部
   const scrollToBottom = () => {
@@ -167,7 +185,7 @@ const ChatWidget: React.FC = () => {
             if (validUser) {
               console.log('🔥 自动选择第一个有效用户:', validUser);
               // 直接设置，避免循环
-              setLocalSelectedUserId(validUser.user_id || validUser.id);
+              setLocalSelectedUserId(validUser.id);
             } else {
               console.warn('🔥 没有找到有效的聊天用户');
             }
@@ -191,7 +209,8 @@ const ChatWidget: React.FC = () => {
     console.log('🔥 获取与用户的消息:', userId);
     
     try {
-      const response = await fetch(`/api/messages/conversation/${userId}`, {
+      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/messages/conversation/${userId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('oldksports_auth_token')}`
         }
@@ -226,7 +245,7 @@ const ChatWidget: React.FC = () => {
         },
         body: JSON.stringify({
           content: newMessage,
-          recipient_id: currentUserId
+          receiver_id: currentUserId
         })
       });
       
@@ -328,7 +347,7 @@ const ChatWidget: React.FC = () => {
     if (currentUserId) {
       fetchMessagesWithUser(currentUserId);
     }
-  }, [localSelectedUserId, selectedUserId]);
+  }, [localSelectedUserId, selectedUserId, fetchMessagesWithUser]);
 
   // 格式化时间
   const formatMessageTime = (dateString: string) => {
@@ -381,7 +400,7 @@ const ChatWidget: React.FC = () => {
       {isOpen && (
         <div 
           ref={chatWidgetRef}
-          className="fixed bottom-6 right-6 z-50 w-[600px] h-[500px] bg-slate-800/95 backdrop-blur-lg rounded-2xl border border-slate-600/50 shadow-2xl overflow-hidden"
+          className="fixed bottom-6 right-6 z-50 w-[600px] h-[500px] bg-white dark:bg-slate-800/95 backdrop-blur-lg rounded-2xl border border-gray-200 dark:border-slate-600/50 shadow-2xl overflow-hidden"
         >
           {/* 聊天窗口头部 */}
           <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-3 flex items-center justify-between">
@@ -415,10 +434,10 @@ const ChatWidget: React.FC = () => {
           {!isMinimized && (
             <div className="flex h-[450px]">
               {/* 左侧：用户列表 */}
-              <div className="w-48 bg-slate-900/50 border-r border-slate-600/50">
+              <div className="w-48 bg-gray-50 dark:bg-slate-900/50 border-r border-gray-200 dark:border-slate-600/50">
                 {/* 用户列表标题 */}
-                <div className="px-3 py-2 border-b border-slate-600/50">
-                  <h4 className="text-sm font-medium text-gray-300">最近聊天</h4>
+                <div className="px-3 py-2 border-b border-gray-200 dark:border-slate-600/50">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">最近聊天</h4>
                 </div>
                 
                 {/* 用户列表 */}
@@ -426,10 +445,10 @@ const ChatWidget: React.FC = () => {
                   {chatUsers.length > 0 ? (
                     chatUsers.map((chatUser) => (
                       <button
-                        key={chatUser.user_id || chatUser.id}
-                        onClick={() => selectUser(Number(chatUser.user_id || chatUser.id))}
-                        className={`w-full p-3 text-left hover:bg-slate-700/30 transition-colors border-b border-slate-700/30 ${
-                          (localSelectedUserId || selectedUserId) === (chatUser.user_id || chatUser.id) ? 'bg-emerald-600/20 border-l-2 border-l-emerald-500' : ''
+                        key={chatUser.id}
+                        onClick={() => selectUser(Number(chatUser.id))}
+                        className={`w-full p-3 text-left hover:bg-gray-100 dark:hover:bg-slate-700/30 transition-colors border-b border-gray-200 dark:border-slate-700/30 ${
+                          (localSelectedUserId || selectedUserId) === chatUser.id ? 'bg-emerald-100 dark:bg-emerald-600/20 border-l-2 border-l-emerald-500' : ''
                         }`}
                       >
                         <div className="flex items-center space-x-3">
@@ -441,15 +460,15 @@ const ChatWidget: React.FC = () => {
                               className="w-8 h-8 rounded-full object-cover"
                             />
                           ) : (
-                            <div className="w-8 h-8 bg-slate-600 rounded-full flex items-center justify-center">
-                              <User size={16} className="text-gray-400" />
+                            <div className="w-8 h-8 bg-gray-200 dark:bg-slate-600 rounded-full flex items-center justify-center">
+                              <User size={16} className="text-gray-600 dark:text-gray-400" />
                             </div>
                           )}
                           
                           {/* 用户信息 */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-white truncate">
+                              <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
                                 {chatUser.username}
                               </span>
                               {chatUser.unread_count > 0 && (
@@ -458,10 +477,10 @@ const ChatWidget: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                            <p className="text-xs text-gray-400 truncate mt-0.5">
+                            <p className="text-xs text-gray-600 dark:text-gray-400 truncate mt-0.5">
                               {chatUser.last_message || '暂无消息'}
                             </p>
-                            <p className="text-xs text-gray-500 mt-0.5">
+                            <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">
                               {formatMessageTime(chatUser.last_message_time)}
                             </p>
                           </div>
@@ -470,8 +489,8 @@ const ChatWidget: React.FC = () => {
                     ))
                   ) : (
                     <div className="p-4 text-center">
-                      <User size={24} className="text-gray-500 mx-auto mb-2" />
-                      <p className="text-xs text-gray-400">暂无聊天记录</p>
+                      <User size={24} className="text-gray-500 dark:text-gray-500 mx-auto mb-2" />
+                      <p className="text-xs text-gray-600 dark:text-gray-400">暂无聊天记录</p>
                     </div>
                   )}
                 </div>
@@ -482,10 +501,10 @@ const ChatWidget: React.FC = () => {
                 {(localSelectedUserId || selectedUserId) ? (
                   <>
                     {/* 聊天对象信息 */}
-                    <div className="px-4 py-2 border-b border-slate-600/50 bg-slate-800/50">
+                    <div className="px-4 py-2 border-b border-gray-200 dark:border-slate-600/50 bg-gray-50 dark:bg-slate-800/50">
                       {(() => {
                         const currentUserId = localSelectedUserId || selectedUserId;
-                        const selectedUser = chatUsers.find(u => (u.user_id || u.id) === currentUserId);
+                        const selectedUser = chatUsers.find(u => u.id === currentUserId);
                         return selectedUser ? (
                           <div className="flex items-center space-x-2">
                             {selectedUser.avatar ? (
@@ -495,16 +514,16 @@ const ChatWidget: React.FC = () => {
                                 className="w-6 h-6 rounded-full"
                               />
                             ) : (
-                              <User size={16} className="text-gray-400" />
+                              <User size={16} className="text-gray-600 dark:text-gray-400" />
                             )}
-                            <span className="text-sm font-medium text-white">
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">
                               与 {selectedUser.username} 的对话
                             </span>
                           </div>
                         ) : (
                           <div className="flex items-center space-x-2">
-                            <User size={16} className="text-gray-400" />
-                            <span className="text-sm font-medium text-gray-400">
+                            <User size={16} className="text-gray-600 dark:text-gray-400" />
+                            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
                               正在加载用户信息...
                             </span>
                           </div>
@@ -513,7 +532,7 @@ const ChatWidget: React.FC = () => {
                     </div>
 
                     {/* 消息列表 */}
-                    <div className="flex-1 p-3 overflow-y-auto bg-slate-900/30">
+                    <div className="flex-1 p-3 overflow-y-auto bg-gray-50 dark:bg-slate-900/30">
                       {messages.length > 0 ? (
                         <div className="space-y-2">
                           {messages.map((message) => (
@@ -524,7 +543,7 @@ const ChatWidget: React.FC = () => {
                               <div className={`max-w-[75%] ${
                                 message.sender_id === user.id
                                   ? 'bg-emerald-600 text-white'
-                                  : 'bg-slate-700 text-gray-300'
+                                  : 'bg-gray-200 dark:bg-slate-700 text-gray-900 dark:text-gray-300'
                               } rounded-lg px-3 py-2 shadow-lg`}>
                                 <p className="text-sm break-words">{message.content}</p>
                                 <div className="text-xs opacity-75 mt-1 text-right">
@@ -537,23 +556,23 @@ const ChatWidget: React.FC = () => {
                         </div>
                       ) : (
                         <div className="text-center py-8">
-                          <MessageCircle size={32} className="text-gray-500 mx-auto mb-2" />
-                          <p className="text-gray-400 text-sm">暂无对话消息</p>
-                          <p className="text-gray-500 text-xs">开始聊天吧！</p>
+                          <MessageCircle size={32} className="text-gray-500 dark:text-gray-500 mx-auto mb-2" />
+                          <p className="text-gray-600 dark:text-gray-400 text-sm">暂无对话消息</p>
+                          <p className="text-gray-500 dark:text-gray-500 text-xs">开始聊天吧！</p>
                         </div>
                       )}
                     </div>
 
                     {/* 消息输入区域 */}
-                    <div className="border-t border-slate-600/50 p-3">
+                    <div className="border-t border-gray-200 dark:border-slate-600/50 p-3">
                       <div className="flex items-center space-x-2">
                         <input
                           type="text"
                           value={newMessage}
                           onChange={(e) => setNewMessage(e.target.value)}
                           onKeyPress={handleKeyPress}
-                          placeholder={`给 ${chatUsers.find(u => (u.user_id || u.id) === (localSelectedUserId || selectedUserId))?.username || '用户'} 发消息...`}
-                          className="flex-1 bg-slate-700/50 text-white placeholder-gray-400 px-3 py-2 rounded-lg border border-slate-600/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 text-sm"
+                          placeholder={`给 ${chatUsers.find(u => u.id === (localSelectedUserId || selectedUserId))?.username || '用户'} 发消息...`}
+                          className="flex-1 bg-gray-100 dark:bg-slate-700/50 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 text-sm"
                         />
                         <button
                           onClick={sendMessage}
@@ -571,11 +590,11 @@ const ChatWidget: React.FC = () => {
                   </>
                 ) : (
                   // 未选择用户时的提示
-                  <div className="flex-1 flex items-center justify-center bg-slate-900/30">
+                  <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-slate-900/30">
                     <div className="text-center">
-                      <MessageCircle size={48} className="text-gray-500 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-white mb-2">选择一个聊天</h3>
-                      <p className="text-gray-400 text-sm">从左侧选择用户开始对话</p>
+                      <MessageCircle size={48} className="text-gray-500 dark:text-gray-500 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">选择一个聊天</h3>
+                      <p className="text-gray-600 dark:text-gray-400 text-sm">从左侧选择用户开始对话</p>
                     </div>
                   </div>
                 )}

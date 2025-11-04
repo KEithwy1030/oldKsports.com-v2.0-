@@ -308,7 +308,7 @@ const AdminPage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-radial from-slate-700 to-slate-900">
+    <div className="min-h-screen bg-gradient-surface">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -317,22 +317,22 @@ const AdminPage: React.FC = () => {
               <Shield className="w-6 h-6 text-red-400" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">管理员后台</h1>
-              <p className="text-gray-300">系统管理和内容维护</p>
+              <h1 className="text-3xl font-bold text-on-surface">管理员后台</h1>
+              <p className="text-on-surface-variant">系统管理和内容维护</p>
             </div>
           </div>
           
-          <div className="text-sm text-gray-400">
+          <div className="text-sm text-on-surface-tertiary">
             管理员：{user.username}
           </div>
         </div>
 
         {/* Website Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 p-6">
+          <div className="bg-surface-variant/10 backdrop-blur-sm rounded-lg border border-surface/20 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-300 mb-1">今日新增用户</p>
+                <p className="text-sm text-on-surface-variant mb-1">今日新增用户</p>
                 <p className="text-2xl font-bold text-emerald-400">{websiteStats.dailyNewUsers}</p>
               </div>
               <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center">
@@ -341,10 +341,10 @@ const AdminPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 p-6">
+          <div className="bg-surface-variant/10 backdrop-blur-sm rounded-lg border border-surface/20 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-300 mb-1">在线用户</p>
+                <p className="text-sm text-on-surface-variant mb-1">在线用户</p>
                 <p className="text-2xl font-bold text-blue-400">{websiteStats.onlineUsers}</p>
               </div>
               <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
@@ -353,10 +353,10 @@ const AdminPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 p-6">
+          <div className="bg-surface-variant/10 backdrop-blur-sm rounded-lg border border-surface/20 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-300 mb-1">总帖子数</p>
+                <p className="text-sm text-on-surface-variant mb-1">总帖子数</p>
                 <p className="text-2xl font-bold text-purple-400">{websiteStats.totalPosts}</p>
               </div>
               <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center">
@@ -365,10 +365,10 @@ const AdminPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 p-6">
+          <div className="bg-surface-variant/10 backdrop-blur-sm rounded-lg border border-surface/20 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-300 mb-1">今日新帖</p>
+                <p className="text-sm text-on-surface-variant mb-1">今日新帖</p>
                 <p className="text-2xl font-bold text-orange-400">{websiteStats.dailyNewPosts}</p>
               </div>
               <div className="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center">
@@ -379,7 +379,7 @@ const AdminPage: React.FC = () => {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex space-x-1 mb-8 bg-white/10 backdrop-blur-sm p-1 rounded-lg border border-white/20 w-fit">
+        <div className="flex space-x-1 mb-8 bg-surface-variant/10 backdrop-blur-sm p-1 rounded-lg border border-surface/20 w-fit">
           {tabs.map((tab) => {
             const IconComponent = tab.icon;
             return (
@@ -388,8 +388,8 @@ const AdminPage: React.FC = () => {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`flex items-center space-x-2 px-6 py-3 rounded-md font-medium transition-colors ${
                   activeTab === tab.id
-                    ? 'bg-red-600 text-white shadow-sm'
-                    : 'text-gray-300 hover:text-white hover:bg-white/10'
+                    ? 'bg-red-600 text-on-surface shadow-sm'
+                    : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/10'
                 }`}
               >
                 <IconComponent className="w-5 h-5" />
@@ -400,21 +400,21 @@ const AdminPage: React.FC = () => {
         </div>
 
         {/* Tab Content */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 p-8">
+        <div className="bg-surface-variant/10 backdrop-blur-sm rounded-lg border border-surface/20 p-8">
           {/* 用户管理 */}
           {activeTab === 'users' && (
             <div>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-white">用户管理</h2>
+                <h2 className="text-2xl font-bold text-on-surface">用户管理</h2>
                 <div className="flex items-center space-x-4">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-on-surface-tertiary" size={20} />
                     <input
                       type="text"
                       placeholder="搜索用户..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 pr-4 py-2 bg-white/10 border border-white/30 rounded-lg text-white placeholder-gray-400 w-64"
+                      className="pl-10 pr-4 py-2 bg-surface-variant/10 border border-surface/30 rounded-lg text-on-surface placeholder-on-surface-tertiary w-64"
                     />
                   </div>
                 </div>
@@ -424,29 +424,29 @@ const AdminPage: React.FC = () => {
                 <table className="min-w-full divide-y divide-white/20">
                   <thead>
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                         用户信息
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                         邮箱
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                         IP地址
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                         积分/等级
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                         注册时间
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                         状态
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/10">
+                  <tbody className="divide-y divide-surface/10">
                     {filteredUsers.map((user) => (
-                      <tr key={user.id} className="hover:bg-white/5">
+                      <tr key={user.id} className="hover:bg-surface-variant/5">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center space-x-3">
                             <div 
@@ -482,19 +482,19 @@ const AdminPage: React.FC = () => {
                               )}
                             </div>
                             <div>
-                              <span className="text-white font-medium">
+                              <span className="text-on-surface font-medium">
                                 {user.username || '未知用户'}
                               </span>
-                              <div className="text-xs text-gray-400">ID: {user.id}</div>
+                              <div className="text-xs text-on-surface-tertiary">ID: {user.id}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-gray-300">
+                        <td className="px-6 py-4 whitespace-nowrap text-on-surface-variant">
                           {user.email}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-gray-300">
+                        <td className="px-6 py-4 whitespace-nowrap text-on-surface-variant">
                           <div className="flex items-center space-x-2">
-                            <Globe className="w-4 h-4 text-gray-400" />
+                            <Globe className="w-4 h-4 text-on-surface-tertiary" />
                             <span className="font-mono text-sm">
                               {typeof user.id === 'string' && (user.id as string).startsWith('bot_') ? '192.168.1.' + Math.floor(Math.random() * 255) : '127.0.0.1'}
                             </span>
@@ -511,7 +511,7 @@ const AdminPage: React.FC = () => {
                             </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-gray-300 text-sm">
+                        <td className="px-6 py-4 whitespace-nowrap text-on-surface-variant text-sm">
                           {new Date(user.joinDate).toLocaleDateString('zh-CN')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -542,9 +542,9 @@ const AdminPage: React.FC = () => {
 
               {filteredUsers.length === 0 && (
                 <div className="text-center py-12">
-                  <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-white mb-2">暂无用户数据</h3>
-                  <p className="text-gray-300">
+                  <Users className="w-16 h-16 text-on-surface-tertiary mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-on-surface mb-2">暂无用户数据</h3>
+                  <p className="text-on-surface-variant">
                     {searchTerm ? '没有找到匹配的用户' : '开始创建机器人账号来添加用户'}
                   </p>
                 </div>
@@ -556,7 +556,7 @@ const AdminPage: React.FC = () => {
           {activeTab === 'bots' && (
             <div>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-white">机器人账号管理</h2>
+                <h2 className="text-2xl font-bold text-on-surface">机器人账号管理</h2>
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center space-x-2">
                     <label className="text-sm text-gray-300">创建数量：</label>
@@ -566,7 +566,7 @@ const AdminPage: React.FC = () => {
                       max="100"
                       value={accountCount}
                       onChange={(e) => setAccountCount(parseInt(e.target.value) || 10)}
-                      className="w-20 px-2 py-1 bg-white/10 border border-white/30 rounded text-white text-sm"
+                      className="w-20 px-2 py-1 bg-surface-variant/10 border border-surface/30 rounded text-on-surface text-sm"
                     />
                   </div>
                   <button
@@ -585,19 +585,19 @@ const AdminPage: React.FC = () => {
                   <table className="min-w-full divide-y divide-white/20">
                     <thead>
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                           用户名
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                           邮箱
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                           密码
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                           积分/等级
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                           行业身份
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
@@ -751,9 +751,9 @@ const AdminPage: React.FC = () => {
 
               {createdAccounts.length === 0 && (
                 <div className="text-center py-12">
-                  <Bot className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-white mb-2">暂无机器人账号</h3>
-                  <p className="text-gray-300">点击"批量创建"按钮开始创建机器人账号</p>
+                  <Bot className="w-16 h-16 text-on-surface-tertiary mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-on-surface mb-2">暂无机器人账号</h3>
+                  <p className="text-on-surface-variant">点击"批量创建"按钮开始创建机器人账号</p>
                 </div>
               )}
             </div>
@@ -762,10 +762,10 @@ const AdminPage: React.FC = () => {
           {/* 其他标签页的简单占位符 */}
           {(activeTab === 'merchants' || activeTab === 'blacklist') && (
             <div className="text-center py-12">
-              <h2 className="text-2xl font-bold text-white mb-4">
+              <h2 className="text-2xl font-bold text-on-surface mb-4">
                 {tabs.find(tab => tab.id === activeTab)?.label}
               </h2>
-              <p className="text-gray-300">
+              <p className="text-on-surface-variant">
                 此功能正在开发中，请使用"用户管理"或"机器人账号"功能。
               </p>
             </div>

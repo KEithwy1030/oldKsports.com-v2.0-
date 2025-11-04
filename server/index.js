@@ -8,6 +8,7 @@ import adminRoutes from "./routes/admin.routes.js";
 import notificationRoutes from "./routes/notifications.js";
 import messageRoutes from "./routes/messages.js";
 import merchantsRoutes from "./routes/merchants.js";
+import onboardingRoutes from "./routes/onboarding.js";
 import cookieParser from "cookie-parser";
 import { authenticateToken } from "./middleware/auth.js";
 import cors from "cors";
@@ -225,6 +226,34 @@ app.post("/api/upload/images", upload.array('images', 9), (req, res) => {
   }
 });
 
+// 单张图片上传接口（兼容旧的前端代码）
+app.post("/api/upload", upload.single('image'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        error: "没有上传任何文件" 
+      });
+    }
+
+    // 复制文件到public目录，供前端访问
+    const publicPath = nodePath.join(publicUploadsDir, req.file.filename);
+    fs.copyFileSync(req.file.path, publicPath);
+    
+    res.json({
+      success: true,
+      url: `/uploads/images/${req.file.filename}`
+    });
+
+  } catch (error) {
+    console.error('图片上传错误:', error);
+    res.status(500).json({
+      success: false,
+      error: "图片上传失败"
+    });
+  }
+});
+
 // 静态文件服务 - 为上传的图片提供访问
 console.log('静态文件服务路径:', nodePath.join(process.cwd(), 'public', 'uploads', 'images'));
 console.log('当前工作目录:', process.cwd());
@@ -326,6 +355,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/merchants", merchantsRoutes);
+app.use("/api/onboarding", onboardingRoutes);
 
 // 添加通用错误处理中间件
 app.use((err, req, res, next) => {

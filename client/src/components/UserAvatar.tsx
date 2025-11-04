@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { userAPI } from '../utils/api';
 import { checkUsernameBeforeApiCall } from '../utils/userIdValidator';
-import { showUserCard, hideUserCard, softHideUserCard } from './UserHoverCard';
 
 interface UserAvatarProps {
   username: string;
@@ -76,13 +75,9 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
   if (avatar && !error) {
     return (
       <div
-        className={`relative inline-block ${className} focus:outline-none outline-none ring-0 focus:ring-0`}
+        className={`relative inline-block cursor-pointer ${className} focus:outline-none outline-none ring-0 focus:ring-0`}
         style={{ lineHeight: 0 }}
         data-username={username}
-        onClick={(e) => {
-          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-          showUserCard(username, rect);
-        }}
         role="button"
         tabIndex={0}
       >
@@ -99,13 +94,11 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
   // Fallback to initial letter
   return (
     <div
-      className={`relative inline-flex items-center justify-center ${fallbackClassName}`}
+      className={`relative inline-flex items-center justify-center cursor-pointer ${fallbackClassName}`}
       style={{ lineHeight: 0 }}
       data-username={username}
-      onClick={(e) => {
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        showUserCard(username, rect);
-      }}
+      role="button"
+      tabIndex={0}
     >
       <div className={`${sizeClasses[size]} bg-emerald-600/20 rounded-full flex items-center justify-center border border-emerald-500/30`}>
         <span className="text-emerald-400 font-bold">

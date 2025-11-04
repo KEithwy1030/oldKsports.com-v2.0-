@@ -50,8 +50,10 @@ const RealTimeAvatar: React.FC<RealTimeAvatarProps> = ({
 
   return (
     <div 
-      className={`${sizeClasses[size]} bg-emerald-600/20 rounded-full flex items-center justify-center border border-emerald-500/30 overflow-hidden ${className} ${onClick ? 'cursor-pointer' : ''}`}
-      onClick={onClick}
+      className={`${sizeClasses[size]} bg-emerald-600/20 rounded-full flex items-center justify-center border border-emerald-500/30 overflow-hidden cursor-pointer ${className}`}
+      data-username={user.username}
+      role="button"
+      tabIndex={0}
     >
       {avatarSrc ? (
         <img

@@ -139,10 +139,16 @@ fast_port_manager.py
 *.backup
 *.bak
 *.tmp
+*.temp
+*_7eef56b*
+temp_*
+*.backup.*
+*_backup.txt
 
 # Database dumps (should not be committed - contains user data)
 oldksports.sql
 oldksports_v2.sql
+oldksports_data_only.sql
 zeabur.sql
 *.sql.dump
 
@@ -157,3 +163,18 @@ client/dist/uploads/
 # Note: client/package-lock.json is needed for Zeabur builds
 # server/package-lock.json - commented out, needed for Zeabur Dockerfile builds
 # client/package-lock.json - commented out, needed for deployment
+
+# Development environment Docker files (本地保留，不提交到 Git)
+# 这些文件只用于本地开发，不影响 Zeabur 部署
+# Zeabur 只使用生产环境的 Dockerfile.backend 和 Dockerfile.frontend
+Dockerfile.backend.dev
+Dockerfile.frontend.dev
+docker-compose.dev.yml
+
+# Development tools and temporary documentation (本地保留，不提交到 Git)
+# 这些文件用于本地开发和参考，但不需要提交到仓库
+cleanup-redundant-files.ps1
+DATABASE_FEATURES.md
+DEPLOYMENT_PRE_CHECK.md
+GIT_COMMIT_CHECKLIST.md
+verify-before-commit.ps1

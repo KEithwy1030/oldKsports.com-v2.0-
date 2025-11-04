@@ -92,14 +92,11 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
       throw error;
     }
 
-    const data: ApiResponse<T> = await response.json();
+    const data = await response.json();
     console.log('API Response:', data);
     
     // Handle standardized success responses
-    if (data.success) {
-      return data.data || data as T;
-    }
-    
+    // Always return the full data object to match the expected type structure
     return data as T;
   } catch (error) {
     console.error('API Request failed:', error);
@@ -118,33 +115,43 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
 // Auth API functions
 export const authAPI = {
   login: async (email: string, password: string): Promise<AuthResponse> => {
-    const response = await apiRequest<AuthResponse>('/auth/login', {
+    const response: any = await apiRequest('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email: email, password })
     });
     
+    const authResponse: AuthResponse = {
+      token: response.token,
+      user: response.user
+    };
+    
     // Store token and user data
-    if (response.token && response.user) {
-      localStorage.setItem('oldksports_auth_token', response.token);
-      localStorage.setItem('oldksports_user', JSON.stringify(response.user));
+    if (authResponse.token && authResponse.user) {
+      localStorage.setItem('oldksports_auth_token', authResponse.token);
+      localStorage.setItem('oldksports_user', JSON.stringify(authResponse.user));
     }
     
-    return response;
+    return authResponse;
   },
   
   register: async (username: string, email: string, password: string, roles?: string[]): Promise<AuthResponse> => {
-    const response = await apiRequest<AuthResponse>('/auth/register', {
+    const response: any = await apiRequest('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ username, email, password, roles })
     });
     
+    const authResponse: AuthResponse = {
+      token: response.token,
+      user: response.user
+    };
+    
     // Store token and user data
-    if (response.token && response.user) {
-      localStorage.setItem('oldksports_auth_token', response.token);
-      localStorage.setItem('oldksports_user', JSON.stringify(response.user));
+    if (authResponse.token && authResponse.user) {
+      localStorage.setItem('oldksports_auth_token', authResponse.token);
+      localStorage.setItem('oldksports_user', JSON.stringify(authResponse.user));
     }
     
-    return response;
+    return authResponse;
   },
   
   logout: () => {
@@ -181,6 +188,30 @@ export const authAPI = {
     return apiRequest(`/auth/reset-password/${token}`, {
       method: 'POST',
       body: JSON.stringify({ password, confirmPassword })
+    });
+  },
+  
+  // Onboarding API functions
+  getOnboardingStatus: async (): Promise<{ success: boolean; data: any }> => {
+    return apiRequest<{ success: boolean; data: any }>('/onboarding/status');
+  },
+  
+  completeOnboardingTask: async (taskId: string): Promise<{ success: boolean; message?: string }> => {
+    return apiRequest('/onboarding/complete-task', {
+      method: 'POST',
+      body: JSON.stringify({ taskId })
+    });
+  },
+  
+  updateOnboardingShowTime: async (): Promise<{ success: boolean }> => {
+    return apiRequest('/onboarding/update-show-time', {
+      method: 'POST'
+    });
+  },
+
+  dismissOnboarding: async (): Promise<{ success: boolean; message?: string }> => {
+    return apiRequest('/onboarding/dismiss', {
+      method: 'POST'
     });
   }
 };
@@ -225,6 +256,10 @@ export const userAPI = {
       return { success: false, user: { id: 0, username: '', email: '', points: 0, joinDate: '' } };
     }
     return apiRequest<{ success: boolean; user: { id: number; username: string; email: string; points: number; joinDate: string } }>(`/users/${username}/info`);
+  },
+  
+  getTodayOnlineUsers: async (): Promise<{ success: boolean; data: { users: any[]; totalOnline: number } }> => {
+    return apiRequest<{ success: boolean; data: { users: any[]; totalOnline: number } }>('/users/online/today');
   }
 };
 
@@ -382,6 +417,19 @@ export const forumAPI = {
     return await apiRequest(`/posts/${postId}/replies`, {
       method: 'POST',
       body: JSON.stringify({ content })
+    });
+  },
+  
+  updatePost: async (postId: number, data: { title?: string, content?: string, category?: string }) => {
+    return await apiRequest(`/posts/${postId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  },
+  
+  deletePost: async (postId: number) => {
+    return await apiRequest(`/posts/${postId}`, {
+      method: 'DELETE'
     });
   }
 };

@@ -108,6 +108,44 @@ async function compatibilityMigration(db) {
             }
         });
     });
+
+    // 兼容：blacklist 表缺失字段自动补齐
+    const ensureColumn = async (table, column, ddl) => {
+        await new Promise((resolve) => {
+            db.query(`
+                SELECT COUNT(*) as count
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = ?
+                  AND COLUMN_NAME = ?
+            `, [table, column], (err, results) => {
+                if (err) { console.warn(`[auto-migrate] 检查列失败 ${table}.${column}:`, err.message); return resolve(); }
+                const exists = results?.[0]?.count > 0;
+                if (exists) return resolve();
+                db.query(`ALTER TABLE ${table} ${ddl}`, (alterErr) => {
+                    if (alterErr) console.warn(`[auto-migrate] 添加列失败 ${table}.${column}:`, alterErr.message);
+                    else console.log(`[auto-migrate] 已添加 ${table}.${column}`);
+                    resolve();
+                });
+            });
+        });
+    };
+
+    await ensureColumn('blacklist', 'report_source', "ADD COLUMN report_source ENUM('user','platform') DEFAULT 'user' AFTER evidence_urls");
+    await ensureColumn('blacklist', 'updated_at', 'ADD COLUMN updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP AFTER created_at');
+    
+    // 兼容：merchants 表缺失字段自动补齐
+    await ensureColumn('merchants', 'created_by', 'ADD COLUMN created_by INT NOT NULL AFTER contact_info');
+    await ensureColumn('merchants', 'updated_at', 'ADD COLUMN updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at');
+    
+    // 兼容：onboarding_tasks 表缺失字段自动补齐
+    await ensureColumn('onboarding_tasks', 'id', 'ADD COLUMN id INT AUTO_INCREMENT FIRST');
+    await ensureColumn('onboarding_tasks', 'reward', 'ADD COLUMN reward INT DEFAULT 0 AFTER task_id');
+    await ensureColumn('onboarding_tasks', 'completed_at', 'ADD COLUMN completed_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER reward');
+    await ensureColumn('onboarding_tasks', 'created_at', 'ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER completed_at');
+    await ensureColumn('onboarding_tasks', 'last_shown_at', 'ADD COLUMN last_shown_at DATETIME DEFAULT NULL AFTER created_at');
+    await ensureColumn('onboarding_tasks', 'progress', 'ADD COLUMN progress INT DEFAULT 0 AFTER last_shown_at');
+    await ensureColumn('onboarding_tasks', 'target', 'ADD COLUMN target INT DEFAULT 1 AFTER progress');
 }
 
 // 完整迁移：创建所有表

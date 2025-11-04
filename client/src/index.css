@@ -8,16 +8,45 @@
   font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
+
+  /* Default Theme: Dark (夜间模式) - 新用户和游客默认使用深色主题 */
+  --color-bg-primary: #0f172a; /* slate-900 */
+  --color-bg-secondary: #1e293b; /* slate-800 */
+  --color-bg-tertiary: #334155; /* slate-700 */
+  --color-text-primary: #f1f5f9; /* slate-100 */
+  --color-text-secondary: #cbd5e1; /* slate-300 */
+  --color-text-tertiary: #94a3b8; /* slate-400 */
+  --color-border: #475569; /* slate-600 */
+  --color-border-light: #334155; /* slate-700 */
+  /* 渐变背景 - 从 tertiary 到 primary */
+  --color-gradient-from: var(--color-bg-tertiary);
+  --color-gradient-to: var(--color-bg-primary);
+}
+
+[data-theme="light"] {
+  /* Light Theme Colors - 仅当用户明确切换到日间模式时使用 */
+  --color-bg-primary: #f9fafb; /* gray-50 */
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #f3f4f6; /* gray-100 */
+  --color-text-primary: #111827; /* gray-900 */
+  --color-text-secondary: #6b7280; /* gray-500 */
+  --color-text-tertiary: #9ca3af; /* gray-400 */
+  --color-border: #e5e7eb; /* gray-200 */
+  --color-border-light: #f3f4f6; /* gray-100 */
+  /* 渐变背景 - 日间模式使用更浅的渐变 */
+  --color-gradient-from: var(--color-bg-tertiary);
+  --color-gradient-to: var(--color-bg-primary);
+}
+
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .font-manrope {

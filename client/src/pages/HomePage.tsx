@@ -65,14 +65,14 @@ const HomePage: React.FC = () => {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-gradient-radial from-slate-700 to-slate-900">
+      <div className="min-h-screen bg-gray-50 dark:bg-gradient-radial dark:from-slate-700 dark:to-slate-900">
         {/* Hero Section - Full Screen Center */}
         <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-5xl mx-auto overflow-hidden">
-            <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-8 leading-tight sm:whitespace-nowrap">
+            <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold text-gray-900 dark:text-white mb-8 leading-tight sm:whitespace-nowrap">
               每一个体育媒体人的内行主场
             </h1>
-            <p className="text-xl md:text-2xl text-gray-300 mb-12 leading-relaxed">
+            <p className="text-xl md:text-2xl text-gray-700 dark:text-gray-300 mb-12 leading-relaxed">
               一个专为体育媒体人打造的交流社区
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
@@ -95,7 +95,7 @@ const HomePage: React.FC = () => {
                   </Link>
                   <Link
                     to="/login"
-                    className="inline-flex items-center px-10 py-4 border-2 border-emerald-500 text-emerald-400 rounded-lg font-semibold hover:bg-emerald-500 hover:text-white transition-all duration-200 text-lg"
+                    className="inline-flex items-center px-10 py-4 border-2 border-emerald-500 text-emerald-600 dark:text-emerald-400 rounded-lg font-semibold hover:bg-emerald-500 hover:text-white transition-all duration-200 text-lg"
                   >
                     登录账户
                   </Link>
@@ -105,8 +105,8 @@ const HomePage: React.FC = () => {
             
             {/* Scroll Indicator */}
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
-              <div className="w-6 h-10 border-2 border-white/30 rounded-full flex justify-center">
-                <div className="w-1 h-3 bg-white/50 rounded-full mt-2 animate-scroll"></div>
+              <div className="w-6 h-10 border-2 border-gray-400 dark:border-white/30 rounded-full flex justify-center">
+                <div className="w-1 h-3 bg-gray-600 dark:bg-white/50 rounded-full mt-2 animate-scroll"></div>
               </div>
             </div>
           </div>
@@ -118,13 +118,13 @@ const HomePage: React.FC = () => {
       {/* Featured Posts */}
           <div className="mb-20 scroll-reveal">
             <div className="text-center mb-12 scroll-reveal">
-              <h2 className="text-3xl font-bold text-white mb-4">热门讨论</h2>
-              <p className="text-gray-300">最新最热的体育话题讨论</p>
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">热门讨论</h2>
+              <p className="text-gray-700 dark:text-gray-300">最新最热的体育话题讨论</p>
             </div>
             
             <div className="grid md:grid-cols-3 gap-8">
               {featuredPosts.map((post, index) => (
-                <div key={post.id} className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 hover:border-emerald-400 transition-all duration-300 overflow-hidden group" style={{ '--stagger-delay': `${11 + index}` } as React.CSSProperties}>
+                <div key={post.id} className="bg-white dark:bg-white/10 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-white/20 hover:border-emerald-400 transition-all duration-300 overflow-hidden group" style={{ '--stagger-delay': `${11 + index}` } as React.CSSProperties}>
                   <div className="p-6">
                     <div className="flex items-center space-x-3 mb-4">
                       {post.authorAvatar ? (
@@ -134,28 +134,28 @@ const HomePage: React.FC = () => {
                           className="w-10 h-10 rounded-full object-cover"
                         />
                       ) : (
-                        <div className="w-10 h-10 bg-emerald-600/20 rounded-full flex items-center justify-center border border-emerald-500/30">
-                          <User size={16} className="text-emerald-400" />
+                        <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-600/20 rounded-full flex items-center justify-center border border-emerald-400 dark:border-emerald-500/30">
+                          <User size={16} className="text-emerald-600 dark:text-emerald-400" />
                         </div>
                       )}
                       <div>
-                        <div className="font-medium text-white">{post.author || '未知用户'}</div>
-                        <div className="text-sm text-gray-400">{post.category}</div>
+                        <div className="font-medium text-gray-900 dark:text-white">{post.author || '未知用户'}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{post.category}</div>
                       </div>
                     </div>
                     
-                    <h3 className="text-lg font-semibold text-white mb-3 group-hover:text-emerald-400 transition-colors">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">
                       {post.title}
                     </h3>
                     
-                    <div className="text-gray-300 mb-4 line-clamp-3">
+                    <div className="text-gray-700 dark:text-gray-300 mb-4 line-clamp-3">
                       <HtmlContent 
                         content={post.content} 
                         className="post-preview"
                       />
                     </div>
                     
-                    <div className="flex items-center justify-between text-sm text-gray-400">
+                    <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
                       <div className="flex items-center space-x-4">
                         <span className="flex items-center space-x-1">
                           <Star size={14} />
@@ -187,8 +187,8 @@ const HomePage: React.FC = () => {
       {/* Features Section */}
           <div className="mb-20 scroll-reveal scroll-reveal-delay-1">
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-white mb-4">平台特色</h2>
-              <p className="text-gray-300">为体育自媒体人打造的专业交流平台</p>
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">平台特色</h2>
+              <p className="text-gray-700 dark:text-gray-300">为体育自媒体人打造的专业交流平台</p>
             </div>
             
             <div className="grid md:grid-cols-3 gap-8">
@@ -196,10 +196,10 @@ const HomePage: React.FC = () => {
                 onClick={() => handleNavigation('/forum')} 
                 className="group cursor-pointer scroll-reveal scroll-reveal-delay-2"
               >
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 p-8 hover:border-emerald-400 transition-all duration-300 hover:scale-105">
-                  <MessageSquare className="w-12 h-12 text-emerald-400 mb-4 group-hover:scale-110 transition-transform" />
-                  <h3 className="text-xl font-semibold text-white mb-3">行业论坛</h3>
-                  <p className="text-gray-300">体育自媒体人的交流社区，分享经验，对接资源</p>
+                <div className="bg-white dark:bg-white/10 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-white/20 p-8 hover:border-emerald-400 transition-all duration-300 hover:scale-105">
+                  <MessageSquare className="w-12 h-12 text-emerald-600 dark:text-emerald-400 mb-4 group-hover:scale-110 transition-transform" />
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">行业论坛</h3>
+                  <p className="text-gray-700 dark:text-gray-300">体育自媒体人的交流社区，分享经验，对接资源</p>
                 </div>
               </div>
               
@@ -207,10 +207,10 @@ const HomePage: React.FC = () => {
                 onClick={() => handleNavigation('/merchants')} 
                 className="group cursor-pointer scroll-reveal scroll-reveal-delay-3"
               >
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 p-8 hover:border-emerald-400 transition-all duration-300 hover:scale-105">
-                  <Store className="w-12 h-12 text-blue-400 mb-4 group-hover:scale-110 transition-transform" />
-                  <h3 className="text-xl font-semibold text-white mb-3">优秀商家</h3>
-                  <p className="text-gray-300">优质服务商和供应商，为体育媒体人提供可靠的商业服务</p>
+                <div className="bg-white dark:bg-white/10 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-white/20 p-8 hover:border-emerald-400 transition-all duration-300 hover:scale-105">
+                  <Store className="w-12 h-12 text-blue-600 dark:text-blue-400 mb-4 group-hover:scale-110 transition-transform" />
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">优秀商家</h3>
+                  <p className="text-gray-700 dark:text-gray-300">优质服务商和供应商，为体育媒体人提供可靠的商业服务</p>
                 </div>
               </div>
               
@@ -218,10 +218,10 @@ const HomePage: React.FC = () => {
                 onClick={() => handleNavigation('/blacklist')} 
                 className="group cursor-pointer scroll-reveal scroll-reveal-delay-4"
               >
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 p-8 hover:border-emerald-400 transition-all duration-300 hover:scale-105">
-                  <AlertTriangle className="w-12 h-12 text-red-400 mb-4 group-hover:scale-110 transition-transform" />
-                  <h3 className="text-xl font-semibold text-white mb-3">曝光黑榜</h3>
-                  <p className="text-gray-300">曝光不良商家，维护行业秩序，保护从业者权益</p>
+                <div className="bg-white dark:bg-white/10 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-white/20 p-8 hover:border-emerald-400 transition-all duration-300 hover:scale-105">
+                  <AlertTriangle className="w-12 h-12 text-red-600 dark:text-red-400 mb-4 group-hover:scale-110 transition-transform" />
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">曝光黑榜</h3>
+                  <p className="text-gray-700 dark:text-gray-300">曝光不良商家，维护行业秩序，保护从业者权益</p>
                 </div>
               </div>
             </div>

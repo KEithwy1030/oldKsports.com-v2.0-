@@ -9,6 +9,9 @@ interface ChatUser {
 interface ChatContextType {
   isOpen: boolean;
   selectedUserId: number | null;
+  selectedUserInfo: ChatUser | null;
+  totalUnreadCount: number;
+  setTotalUnreadCount: (count: number) => void;
   openChatWith: (user: ChatUser) => void;
   closeChat: () => void;
   toggleChat: () => void;
@@ -23,10 +26,13 @@ interface ChatProviderProps {
 export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [selectedUserInfo, setSelectedUserInfo] = useState<ChatUser | null>(null);
+  const [totalUnreadCount, setTotalUnreadCount] = useState(0);
 
   const openChatWith = (user: ChatUser) => {
     console.log('🔥 开启与用户的聊天:', user);
     setSelectedUserId(user.id);
+    setSelectedUserInfo(user);
     setIsOpen(true);
   };
 
@@ -42,9 +48,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const value: ChatContextType = {
     isOpen,
     selectedUserId,
+    selectedUserInfo,
+    totalUnreadCount,
     openChatWith,
     closeChat,
-    toggleChat
+    toggleChat,
+    setTotalUnreadCount
   };
 
   return (

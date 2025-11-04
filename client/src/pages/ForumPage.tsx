@@ -1,831 +1,1188 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
-import { forumAPI } from '../utils/api';
-import { FORUM_CATEGORIES } from '../data/constants';
+import { forumAPI, userAPI } from '../utils/api';
+import { FORUM_CATEGORIES, USER_LEVELS, INDUSTRY_ROLES } from '../data/constants';
 import { formatTimeAgo } from '../utils/formatTime';
-import { mockUsers } from '../data/mockData';
-import { Plus, Filter, MessageSquare, Clock, Users, Briefcase, AlertTriangle, Reply, Trash2 } from 'lucide-react';
+import { getUserLevel } from '../utils/userUtils';
+import { Plus, Filter, MessageSquare, Clock, Users, Briefcase, AlertTriangle, Reply, Trash2, Star, Coffee, Settings, Search, X, Smile, Image, AtSign } from 'lucide-react';
 import PageTransition from '../components/PageTransition';
-import Toast from '../components/Toast';
-import UserAvatar from '../components/UserAvatar';
-import ClickableUserAvatar from '../components/ClickableUserAvatar';
-import UserLevelComponent from '../components/UserLevel';
 import PostImageGallery from '../components/PostImageGallery';
 import TokenCleaner from '../components/TokenCleaner';
 import HtmlContent from '../components/HtmlContent';
-import { compressImages, validateImageFile, buildImageUrl, fixImageUrlsInContent } from '../utils/imageUtils';
+import SimpleTextEditor from '../components/SimpleTextEditor';
+import { buildImageUrl, fixImageUrlsInContent } from '../utils/imageUtils';
 import { tokenSync } from '../utils/tokenSync';
-import { getSafePostAuthor, getSafePostAuthorStrict, getSafeUserId } from '../utils/globalCleanup';
+import UserAvatar from '../components/UserAvatar';
+import RealTimeAvatar from '../components/RealTimeAvatar';
+
+interface Post {
+  id: number;
+  title: string;
+  content: string;
+  author: string;
+  author_level?: string;
+  author_points?: number;
+  category: string;
+  timestamp: string;
+  views: number;
+  likes: number;
+  replies: Array<{
+    id: number;
+    author: string;
+    content: string;
+    createdAt: string;
+  }>;
+}
 
 const ForumPage: React.FC = () => {
-  const navigate = useNavigate();
-  const { user, getForumPosts, addForumPost, getBotAccounts, onAvatarUpdate, updateUserPoints } = useAuth();
+  const { user, updateUserPoints } = useAuth();
   const { openChatWith } = useChat();
+  const navigate = useNavigate();
   
-  console.log('ForumPage - 用户状态:', {
-    userExists: !!user,
-    username: user?.username,
-    isAdmin: user?.isAdmin,
-    userId: user?.id,
-    userType: typeof user,
-    usernameType: typeof user?.username,
-    userIdType: typeof user?.id
-  });
-  
-  // 根据Agent建议：添加用户ID的空值检查
-  if (user && (!user.id || !user.username)) {
-    console.warn('🔍 ForumPage: 用户数据不完整，强制清理');
-    localStorage.removeItem('oldksports_auth_token');
-    localStorage.removeItem('oldksports_user');
-  }
-  const [posts, setPosts] = useState<any[]>([]);
-  const [showNewPostForm, setShowNewPostForm] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [sortBy, setSortBy] = useState('latest'); // 默认按最新活动排序
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [allPosts, setAllPosts] = useState<Post[]>([]); // 存储所有帖子用于统计
+  const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [newPost, setNewPost] = useState({
     title: '',
     content: '',
-    category: 'general'
+    category: ''
   });
+  const [selectedCategoryName, setSelectedCategoryName] = useState('点击选择');
+  const [hasSelectedCategory, setHasSelectedCategory] = useState(false);
   const [newPostImages, setNewPostImages] = useState<string[]>([]);
-  const [toast, setToast] = useState<{visible: boolean; message: string; type: 'success' | 'error' | 'info' | 'points'}>({ visible: false, message: '', type: 'info' });
-  const [showTokenCleaner, setShowTokenCleaner] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showPostForm, setShowPostForm] = useState(false);
+  const [editingPostId, setEditingPostId] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const categories = FORUM_CATEGORIES;
-
-  // 首次进入时保持显示全部帖子，不需要修改selectedCategory
-
-  // 提取帖子内容中的图片
-  const extractImagesFromContent = (content: string): string[] => {
-    const imgRegex = /<img[^>]+src="([^"]+)"[^>]*>/g;
-    const images: string[] = [];
-    let match;
-    while ((match = imgRegex.exec(content)) !== null) {
-      const imageUrl = buildImageUrl(match[1]);
-      images.push(imageUrl);
-    }
-    return images;
-  };
-
-  // 提取图片网格内容
-  const extractImageGridContent = (content: string): string => {
-    const gridRegex = /<div class="post-images-grid"[^>]*>([\s\S]*?)<\/div>/g;
-    const match = gridRegex.exec(content);
-    let gridContent = match ? match[1] : '';
-    // 修复网格内容中的图片URL
-    return fixImageUrlsInContent(gridContent);
-  };
-
-  // 获取纯文本内容
-  const getTextContent = (content: string): string => {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = content;
-    return tempDiv.textContent || tempDiv.innerText || '';
-  };
-
-  // 获取用户头像
-  const getUserAvatar = (username: string): string => {
-    const mockUser = mockUsers.find(u => u.username === username);
-    return mockUser?.avatar || '';
-  };
-
-  // 获取帖子时间戳
-  const getPostTimestamp = useCallback((post: any) => {
-    return post.timestamp || post.created_at || post.createdAt || post.date;
-  }, []);
-
-  // 统一获取回复数量（适配不同数据形态/兼容本地缓存）
-  const getRepliesCount = useCallback((post: any): number => {
-    const toNum = (v: any) => {
-      const n = typeof v === 'string' ? parseInt(v, 10) : v;
-      return Number.isFinite(n) ? n as number : 0;
-    };
-    try {
-      // 1) 优先使用后端API返回的reply_count字段
-      if (typeof post?.reply_count === 'number') return post.reply_count;
-      if (typeof post?.replyCount === 'number') return post.replyCount;
-
-      // 2) 常规数组字段
-      if (Array.isArray(post?.replies)) return post.replies.length;
-      if (Array.isArray(post?.comments)) return post.comments.length;
-
-      // 3) 其他可能的计数字段（兼容不同命名）
-      const candidates = [
-        post?.repliesCount,
-        post?.commentsCount,
-        post?.commentCount,
-        post?.totalReplies,
-        post?.meta?.replies,
-        post?.meta?.replyCount,
-        post?.stats?.replies
-      ];
-      for (const c of candidates) {
-        const n = toNum(c);
-        if (n > 0) return n;
-      }
-
-      // 4) 本地缓存兜底（可能包含最新回复）
-      const raw = localStorage.getItem('oldksports_forum_posts');
-      if (raw) {
-        const cached = JSON.parse(raw);
-        const found = cached?.find((p: any) => String(p.id) === String(post.id));
-        if (found) {
-          if (Array.isArray(found.replies)) return found.replies.length;
-          if (Array.isArray(found.comments)) return found.comments.length;
-          const n = toNum(found?.reply_count || found?.repliesCount || found?.replyCount || found?.commentsCount);
-          if (n > 0) return n;
-        }
-      }
-    } catch (error) {
-      console.error('getRepliesCount 错误:', error);
-    }
-    return 0;
-  }, []);
-
-  const handleSubforumClick = (categoryId: string) => {
-    setSelectedCategory(categoryId);
-    setSearchTerm('');
-    // 同步更新发帖表单的分类选择
-    if (categoryId !== 'all') {
-      setNewPost(prev => ({ ...prev, category: categoryId }));
-    }
-  };
-
-  const handleBackToMain = (): void => {
-    setSelectedCategory('all'); // 返回显示全部帖子
-    setSearchTerm('');
-    // 重置发帖表单分类为默认值
-    setNewPost(prev => ({ ...prev, category: 'general' }));
-  };
-
-  // 管理员删除帖子功能
-  const handleDeletePost = async (postId: number, postTitle: string) => {
-    console.log('前端删除请求:', { postId, postTitle, userIsAdmin: user?.isAdmin });
+  // 切换发帖类别
+  const togglePostCategory = () => {
+    const categories = [
+      { id: 'industry', name: '行业茶水间', color: 'emerald' },
+      { id: 'business', name: '商务&合作', color: 'blue' },
+      { id: 'blacklist', name: '黑榜曝光', color: 'red' }
+    ];
     
-    if (!user?.isAdmin) {
-      setToast({ visible: true, message: '只有管理员可以删除帖子', type: 'error' });
+    if (!hasSelectedCategory) {
+      // 首次点击，选择第一个类别
+      const firstCategory = categories[0];
+      setNewPost(prev => ({ ...prev, category: firstCategory.id }));
+      setSelectedCategoryName(firstCategory.name);
+      setHasSelectedCategory(true);
+    } else {
+      // 已选择过，循环切换
+      const currentIndex = categories.findIndex(cat => cat.id === newPost.category);
+      const nextIndex = (currentIndex + 1) % categories.length;
+      const nextCategory = categories[nextIndex];
+      
+      setNewPost(prev => ({ ...prev, category: nextCategory.id }));
+      setSelectedCategoryName(nextCategory.name);
+    }
+  };
+
+  // 获取当前类别的颜色
+  const getCategoryColor = () => {
+    const categories = [
+      { id: 'industry', color: 'emerald' },
+      { id: 'business', color: 'blue' },
+      { id: 'blacklist', color: 'red' }
+    ];
+    
+    const currentCategory = categories.find(cat => cat.id === newPost.category);
+    return currentCategory?.color || 'emerald';
+  };
+
+  // 添加表情包到内容
+  const addEmoji = (emoji: string) => {
+    setNewPost(prev => ({ ...prev, content: prev.content + emoji }));
+    setShowEmojiPicker(false);
+  };
+
+  // 添加@到内容
+  const addMention = () => {
+    setNewPost(prev => ({ ...prev, content: prev.content + '@' }));
+    };
+
+  // 直接处理图片上传
+  const handleDirectImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    // 检查数量限制
+    if (newPostImages.length + files.length > 9) {
+      alert('最多只能上传9张图片');
       return;
     }
 
-    const confirmed = window.confirm(`确定要删除帖子"${postTitle}"吗？此操作不可撤销！`);
-    if (!confirmed) return;
-
     try {
-      // 使用令牌同步工具获取有效令牌
-      const token = tokenSync.getValidToken();
-      if (!token) {
-        setToast({ visible: true, message: '登录已过期，请重新登录', type: 'error' });
-        setTimeout(() => {
-          tokenSync.clearAllTokens();
-          window.location.href = '/login';
-        }, 2000);
-        return;
+      const uploadPromises = files.map(async (file) => {
+        // 检查文件类型
+        if (!file.type.startsWith('image/')) {
+          throw new Error('请选择图片文件');
+        }
+
+        // 检查文件大小 (10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          throw new Error('图片大小不能超过10MB');
       }
-      
-      // 构建正确的API URL
-      const apiUrl = import.meta.env.VITE_API_URL || '/api';
-      const deleteUrl = `${apiUrl}/posts/${postId}`;
-      
-      console.log('发送删除请求:', deleteUrl);
-      
-      const response = await fetch(deleteUrl, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
+
+        // 上传图片
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('图片上传失败');
+        }
+
+        const result = await response.json();
+        // 使用 buildImageUrl 构建完整URL
+        const fullUrl = buildImageUrl(result.url);
+        return fullUrl;
       });
 
-      console.log('删除响应状态:', response.status);
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('删除成功:', result);
-        
-        // 从本地状态中移除已删除的帖子
-        setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
-        setToast({ visible: true, message: '帖子删除成功', type: 'success' });
-      } else {
-        const errorData = await response.text();
-        console.error('删除失败响应:', errorData);
-        
-        let errorMessage = '删除失败';
-        try {
-          const jsonError = JSON.parse(errorData);
-          errorMessage = jsonError.message || jsonError.error || errorMessage;
-        } catch {
-          errorMessage = errorData || errorMessage;
-        }
-        
-        setToast({ visible: true, message: errorMessage, type: 'error' });
-        
-        // 如果是401/403错误，清理令牌
-        if (response.status === 401 || response.status === 403) {
-          setTimeout(() => {
-            tokenSync.clearAllTokens();
-            window.location.href = '/login';
-          }, 2000);
-        }
-      }
+      const uploadedUrls = await Promise.all(uploadPromises);
+      setNewPostImages([...newPostImages, ...uploadedUrls]);
     } catch (error) {
-      console.error('删除帖子网络错误:', error);
-      setToast({ visible: true, message: '网络错误，删除失败', type: 'error' });
+      alert(error instanceof Error ? error.message : '图片上传失败');
+    }
+    
+    // 清空文件输入
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
+  const [showTokenCleaner, setShowTokenCleaner] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  
+  // 侧边栏数据状态
+  const [merchants, setMerchants] = useState<any[]>([]);
+  const [blacklistEntries, setBlacklistEntries] = useState<any[]>([]);
+  
+  // 分页状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const postsPerPage = 10;
+  
+  // 帖子列表容器的引用
+  const postsContainerRef = useRef<HTMLDivElement>(null);
+  const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
+  const [totalOnlineUsers, setTotalOnlineUsers] = useState(0);
 
-  // 安全获取帖子数据
-  const safePosts = useMemo(() => {
-    return Array.isArray(posts) ? posts : [];
-  }, [posts]);
+  const categories = FORUM_CATEGORIES;
+  
+  // 帖子分类映射（数据库ID -> 显示名称）
+  const categoryMapping: { [key: string]: string } = {
+    'general': '行业茶水间',
+    'business': '商务＆合作',
+    'news': '黑榜曝光',
+    'industry': '行业茶水间',
+    'blacklist': '黑榜曝光'
+  };
 
-  const getSubforumStats = useCallback((categoryId: string): { totalPosts: number; totalReplies: number; latestPost: string } => {
-    const categoryPosts = safePosts.filter(post => post.category === categoryId);
-    const totalPosts = categoryPosts.length;
-    const totalReplies = categoryPosts.reduce((sum, post) => sum + (post.replies?.length || 0), 0);
-    const latestPost = categoryPosts.length > 0 ? categoryPosts.reduce((latest, post) => new Date(post.timestamp) > new Date(latest.timestamp) ? post : latest) : null;
-    return { totalPosts, totalReplies, latestPost: latestPost ? formatTimeAgo(latestPost.timestamp) : '暂无帖子' };
-  }, [safePosts]);
-
-  const sortedPosts = useMemo(() => {
-    const filtered = safePosts.filter(post => {
-      const matchesCategory = selectedCategory === 'all' || post.category === selectedCategory;
-      return matchesCategory;
-    });
-    return [...filtered].sort((a, b) => {
-      // 统一的排序逻辑：按最新活动时间排序（最新发布或最新回复）
-      const getLatestActivity = (post: any) => {
-        // 如果有回复，使用最新回复时间
-        if (post.replies && post.replies.length > 0) {
-          const latestReply = post.replies.reduce((latest: any, reply: any) => {
-            const replyTime = new Date(reply.createdAt || reply.timestamp);
-            const latestTime = new Date(latest.createdAt || latest.timestamp);
-            return replyTime > latestTime ? reply : latest;
-          });
-          return new Date(latestReply.createdAt || latestReply.timestamp);
-        }
-        
-        // 否则使用帖子创建时间
-        const timestamp = getPostTimestamp(post);
-        if (timestamp) {
-          const postTime = new Date(timestamp);
-          if (!isNaN(postTime.getTime())) return postTime;
-        }
-        
-        // 如果时间戳无效，使用ID作为排序依据（ID越大越新）
-        return new Date(parseInt(post.id) || 0);
-      };
-      
-      const aTime = getLatestActivity(a);
-      const bTime = getLatestActivity(b);
-      
-      // 根据排序方式决定顺序
-      if (sortBy === 'latest') {
-        // 按最新活动时间排序（最新发布或最新回复）
-        return bTime.getTime() - aTime.getTime();
-      } else if (sortBy === 'oldest') {
-        return aTime.getTime() - bTime.getTime(); // 最旧在前
-      } else if (sortBy === 'popular') {
-        return (b.likes || 0) - (a.likes || 0); // 按点赞数排序
-      } else if (sortBy === 'replies') {
-        // 按回复数量排序，回复多的在前
-        const aReplies = a.replies ? a.replies.length : 0;
-        const bReplies = b.replies ? b.replies.length : 0;
-        if (bReplies !== aReplies) {
-          return bReplies - aReplies;
-        }
-        // 如果回复数相同，按最新活动时间排序
-        return bTime.getTime() - aTime.getTime();
+  // 从内容中提取图片URL（支持HTML和Markdown格式）
+  const extractImagesFromContent = (content: string): string[] => {
+    if (!content) return [];
+    
+    const urls: string[] = [];
+    
+    // 1. 提取HTML格式的图片: <img src="url" alt="alt">
+    const htmlImgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+    let match;
+    
+    while ((match = htmlImgRegex.exec(content)) !== null) {
+      const src = match[1];
+      if (src && !src.startsWith('data:') && !src.startsWith('blob:')) {
+        urls.push(src);
       }
-      
-      return 0;
-    });
-  }, [safePosts, selectedCategory, sortBy]);
+    }
+    
+    // 2. 提取Markdown格式的图片: ![alt](url)
+    const markdownImgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+    
+    while ((match = markdownImgRegex.exec(content)) !== null) {
+      const src = match[2];
+      if (src && !src.startsWith('data:') && !src.startsWith('blob:')) {
+        urls.push(src);
+    }
+    }
+    
+    return urls;
+  };
 
-  // 加载帖子数据
-  useEffect(() => {
-    const loadPosts = async () => {
-      try {
-        // 清理可能包含旧URL的localStorage缓存
-        console.log('ForumPage: 清理旧的localStorage缓存');
-        localStorage.removeItem('oldksports_forum_posts');
+  // 获取子版块统计信息（使用所有帖子数据）
+  const getSubforumStats = (categoryId: string, allPostsData: Post[]) => {
+    const categoryPosts = allPostsData
+      .filter(post => post.category === categoryId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); // 按时间倒序排序
+    
+    const totalPosts = categoryPosts.length;
+    const totalReplies = categoryPosts.reduce((sum, post) => sum + (post.reply_count || 0), 0);
+    const latestPost = totalPosts > 0 ? categoryPosts[0].title : '暂无帖子';
+    
+    return { totalPosts, totalReplies, latestPost };
+  };
+
+
+  // 加载今日在线用户
+  const loadOnlineUsers = useCallback(async () => {
+    try {
+      const response = await userAPI.getTodayOnlineUsers();
+      if (response.success && response.data) {
+        setOnlineUsers(response.data.users || []);
+        setTotalOnlineUsers(response.data.totalOnline || 0);
+        console.log('✅ 今日在线用户加载成功:', { 
+          users: response.data.users.length, 
+          total: response.data.totalOnline 
+        });
+      }
+    } catch (error) {
+      console.error('❌ 加载今日在线用户失败:', error);
+      setOnlineUsers([]);
+      setTotalOnlineUsers(0);
+        }
+  }, []);
+
+  // 加载商家数据
+  const loadMerchants = useCallback(async () => {
+    try {
+      // 商家API是公开的，不需要token
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/merchants`, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
         
-        // 直接从API获取最新数据，不使用localStorage缓存
-        console.log('ForumPage: 从API获取最新帖子数据');
+        if (data.success && Array.isArray(data.data)) {
+          // 显示所有商家，最多6个（用于侧边栏显示）
+          setMerchants(data.data.slice(0, 6));
+        }
+      } else {
+        console.error('加载商家失败: HTTP', response.status);
+      }
+    } catch (error) {
+      console.error('加载商家失败:', error);
+      setMerchants([]);
+    }
+  }, []);
+
+  // 加载黑榜数据
+  const loadBlacklist = useCallback(async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/blacklist/public`, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
         
-        // 然后尝试从API获取最新数据
-      try {
-        const response = await forumAPI.getPosts(1, 50);
-        const normalized = Array.isArray(response?.posts)
-          ? response.posts
-          : (Array.isArray(response) ? response : []);
+        if (data.success && Array.isArray(data.data)) {
+          // 格式化黑榜数据：将数据库字段映射到前端需要的格式
+          const formattedEntries = data.data
+            .slice(0, 6) // 最多显示6条
+            .map((entry: any) => {
+              // 格式化曝光时间
+              const date = new Date(entry.created_at);
+              const year = date.getFullYear();
+              const month = date.getMonth() + 1;
+              const exposed_date = `${year}年${month}月曝光`;
+              
+              return {
+                name: entry.name,
+                description: entry.description,
+                exposed_date: exposed_date,
+                contact_info: entry.contact_info,
+                report_source: entry.report_source
+              };
+            });
           
-          if (normalized.length > 0) {
-            console.log('ForumPage: API数据可用，更新帖子列表');
-        setPosts(normalized);
-          }
-        } catch (apiError) {
-          console.warn('ForumPage: API数据获取失败，使用localStorage数据:', apiError);
+          setBlacklistEntries(formattedEntries);
+        }
         }
       } catch (error) {
-        console.error('Failed to load posts:', error);
-        setPosts([]);
+      console.error('加载黑榜失败:', error);
+      setBlacklistEntries([]);
+    }
+  }, []);
+
+  // 加载所有帖子数据（用于统计）
+  const loadAllPosts = useCallback(async () => {
+    try {
+      const data = await forumAPI.getPosts(1, 1000); // 加载足够多的帖子用于统计
+      if (data && data.posts) {
+        setAllPosts(data.posts);
+      } else {
+        setAllPosts([]);
       }
-    };
-    
-    loadPosts();
-  }, [getForumPosts]);
+    } catch (error) {
+      console.error('加载所有帖子失败:', error);
+      setAllPosts([]);
+    }
+  }, []);
+
+  // 加载帖子数据
+  const loadPosts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await forumAPI.getPosts(currentPage, postsPerPage, selectedCategory === 'all' ? undefined : selectedCategory);
+      console.log('[DEBUG] ForumPage loadPosts 响应数据:', data);
+      console.log('[DEBUG] ForumPage loadPosts 数据类型:', typeof data, Array.isArray(data));
+      
+      if (data && data.posts) {
+        setPosts(data.posts);
+        setTotalPages(data.totalPages);
+      } else {
+        setPosts([]);
+        setTotalPages(1);
+      }
+      } catch (error) {
+      console.error('加载帖子失败:', error);
+        setPosts([]);
+      setTotalPages(1);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCategory, currentPage, postsPerPage]);
+
+  // 处理分页切换
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    // 滚动到页面最顶部
+    setTimeout(() => {
+      window.scrollTo({ 
+        top: 0, 
+        behavior: 'smooth' 
+      });
+    }, 100); // 稍微延迟确保新内容已加载
+  };
 
   useEffect(() => {
-    if (user && onAvatarUpdate) {
-      const unsubscribe = onAvatarUpdate((updatedUser) => {
-        setPosts(currentPosts => {
-          const updatedPosts = currentPosts.map(post => 
-            post.author === updatedUser.username 
-              ? { ...post, authorAvatar: updatedUser.avatar } 
-              : post
-          );
-          localStorage.setItem('oldksports_forum_posts', JSON.stringify(updatedPosts));
-          return updatedPosts;
-        });
-      });
-      return () => unsubscribe();
-    }
-    return undefined;
-  }, [user, onAvatarUpdate, getForumPosts]);
+    loadPosts();
+    loadAllPosts(); // 加载所有帖子用于统计
+    loadMerchants();
+    loadBlacklist();
+    loadOnlineUsers();
+  }, [loadPosts, loadAllPosts, loadMerchants, loadBlacklist, loadOnlineUsers]);
 
-  const handleNewPostSubmit = async (e: React.FormEvent) => {
+  // 点击外部关闭菜单
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // 如果点击的不是菜单或菜单按钮，则关闭菜单
+      if (!target.closest('.post-menu-container')) {
+        setEditingPostId(null);
+      }
+    };
+
+    if (editingPostId !== null) {
+      document.addEventListener('click', handleClickOutside);
+      return () => {
+        document.removeEventListener('click', handleClickOutside);
+      };
+    }
+  }, [editingPostId]);
+
+
+  // 处理发帖
+  const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     
-    const postCategory = newPost.category;
+    // 检查是否选择了子版块
+    if (!hasSelectedCategory || !newPost.category) {
+      alert('请先选择子版块！');
+      return;
+    }
     
     try {
-      // 将图片路径嵌入到内容中
+      // 将图片URLs添加到内容中
       let contentWithImages = newPost.content;
       if (newPostImages.length > 0) {
-        // 使用网格布局优化图片显示
-        console.log('🖼️ 论坛发帖图片路径:', newPostImages);
-        const imageHtml = `
-          <div class="post-images-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin: 16px 0;">
-            ${newPostImages.map((imagePath, index) => {
-              const imageUrl = buildImageUrl(imagePath);
-              console.log(`🖼️ 图片 ${index + 1} URL:`, imageUrl);
-              return `<img src="${imageUrl}" alt="帖子图片 ${index + 1}" style="width: 100%; height: auto; border-radius: 8px; object-fit: contain;" class="post-image" />`;
-            }).join('')}
-          </div>
-        `;
-        contentWithImages = contentWithImages + '\n\n' + imageHtml;
-      }
-      
-      // 使用新的API创建帖子
-      const response = await forumAPI.createPost(newPost.title, contentWithImages, postCategory);
-      
-      // 检查响应格式 - 支持新的 { success: true } 格式和旧的字符串格式
-      const isSuccess = (response && typeof response === 'object' && response.success) || 
-                       (typeof response === 'string' && response.includes('created'));
-      
-      if (isSuccess) {
-        setToast({ visible: true, message: '帖子发布成功！', type: 'success' });
-        setNewPost({ title: '', content: '', category: 'general' });
+      const imageHtml = newPostImages.map((url, index) => 
+        `<img src="${url}" alt="帖子图片 ${index + 1}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 8px 0; display: block;" class="post-image" />`
+      ).join('');
+      contentWithImages = newPost.content + '\n\n' + imageHtml;
+    }
+
+        await forumAPI.createPost(newPost.title, contentWithImages, newPost.category);
+        setNewPost({ title: '', content: '', category: '' });
         setNewPostImages([]);
-        setShowNewPostForm(false);
-        
-        // 重新加载帖子列表
-        const updatedPosts = await forumAPI.getPosts(1, 50);
-        if (updatedPosts?.posts) {
-          setPosts(updatedPosts.posts);
-          localStorage.setItem('oldksports_forum_posts', JSON.stringify(updatedPosts.posts));
-        }
+        setShowPostForm(false); // 关闭发帖表单
+        await loadPosts();
+        await loadAllPosts(); // 刷新统计
         
         // 更新用户积分
         if (updateUserPoints) {
-          try {
-            await updateUserPoints(10);
-            setToast({ visible: true, message: '发帖成功！获得10积分', type: 'points' });
-          } catch (pointsError) {
-            console.warn('积分更新失败:', pointsError);
-          }
-        }
-      } else {
-        const errorMessage = (response && response.message) || 
-                           (typeof response === 'string' ? response : '发帖失败，请重试');
-        setToast({ visible: true, message: errorMessage, type: 'error' });
+        updateUserPoints(10);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('发帖失败:', error);
-      
-      // 检查是否是认证错误
-      if (error.response?.status === 403 || error.message?.includes('无效的访问令牌')) {
-        setShowTokenCleaner(true);
-        setToast({ visible: true, message: '登录已过期，请重新登录', type: 'error' });
-      } else {
-        // 检查是否是标题长度错误
-        let errorMessage = '发帖失败，请重试';
-        if (error?.message && error.message.includes('标题长度不能超过15个字符')) {
-          errorMessage = '标题长度不能超过15个字符';
-        } else if (error?.response?.data?.error) {
-          errorMessage = error.response.data.error;
-        }
-        setToast({ visible: true, message: errorMessage, type: 'error' });
-      }
     }
   };
 
+  // 处理删除帖子
+  const handleDeletePost = async (postId: number) => {
+    if (!confirm('确定要删除这条帖子吗？')) return;
+    
+    try {
+      await forumAPI.deletePost(postId);
+      await loadPosts();
+      await loadAllPosts(); // 刷新统计
+    } catch (error) {
+      console.error('删除帖子失败:', error);
+      alert('删除帖子失败');
+    }
+  };
+
+  // 处理切换子版块
+  const handleChangeCategory = async (postId: number, newCategory: string) => {
+    try {
+      await forumAPI.updatePost(postId, { category: newCategory });
+      await loadPosts();
+      await loadAllPosts(); // 刷新统计
+      setEditingPostId(null);
+    } catch (error) {
+      console.error('切换子版块失败:', error);
+      alert('切换子版块失败');
+    }
+  };
+
+  // 切换编辑状态
+  const toggleEditMenu = (postId: number, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (editingPostId === postId) {
+      setEditingPostId(null);
+      } else {
+      setEditingPostId(postId);
+    }
+  };
+
+  // 过滤帖子
+  const filteredPosts = useMemo(() => {
+    let filtered = posts;
+    
+    if (searchTerm) {
+      filtered = filtered.filter(post => 
+        post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        post.content.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    return filtered;
+  }, [posts, searchTerm]);
+      
+  // 子版块配置（使用 useMemo 动态计算，依赖于 allPosts）
+  const subforums = useMemo(() => [
+    {
+      id: 'tea-room',
+      title: '行业茶水间',
+      description: '轻松聊天,分享日常',
+      icon: Coffee,
+      color: 'emerald',
+      category: 'general',
+      stats: getSubforumStats('general', allPosts)
+    },
+    {
+      id: 'business',
+      title: '商务&合作',
+      description: '商业机会和合作讨论',
+      icon: Briefcase,
+      color: 'blue',
+      category: 'business',
+      stats: getSubforumStats('business', allPosts)
+    },
+    {
+      id: 'blacklist',
+      title: '黑榜曝光',
+      description: '曝光不良商家,维护行业秩序',
+      icon: AlertTriangle,
+      color: 'red',
+      category: 'news',
+      stats: getSubforumStats('news', allPosts)
+    }
+  ], [allPosts]);
+
   return (
     <PageTransition>
-      <div className="min-h-screen bg-gradient-radial from-slate-700 to-slate-900">
-        {/* Toast */}
-        <Toast
-          visible={toast.visible}
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast({ visible: false, message: '', type: 'info' })}
-        />
-        
-        {/* 顶部导航栏 */}
-        <div className="bg-white/5 backdrop-blur-sm border-b border-white/10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex items-center space-x-3">
-              <button 
-                onClick={handleBackToMain} 
-                disabled={selectedCategory === 'all'}
-                className={`flex items-center space-x-2 p-2 rounded-lg transition-all duration-200 ${
-                  selectedCategory === 'all' 
-                    ? 'bg-white/5 text-gray-500 cursor-not-allowed' 
-                    : 'bg-white/10 hover:bg-white/20 text-white'
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                <span className="text-sm">{selectedCategory === 'all' ? '全部帖子' : '返回'}</span>
-              </button>
-              <div className="flex items-center space-x-3 flex-1">
-                <div className="p-2 bg-emerald-600/20 rounded-lg"><MessageSquare className="w-6 h-6 text-emerald-400" /></div>
-                <div>
-                  <h1 className="text-2xl font-bold text-white">体育论坛</h1>
-                  <p className="text-gray-400">选择子版块开始交流</p>
+      <div className="min-h-screen bg-gray-50 dark:bg-gradient-radial dark:from-slate-700 dark:to-slate-900">
+
+        {/* 主内容区域 */}
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="grid grid-cols-12 gap-4">
+            {/* 左侧边栏 - 诚信商家 */}
+            <div className="col-span-12 lg:col-span-3">
+              <div className="bg-white dark:bg-white/10 backdrop-blur-sm rounded-xl border border-gray-300 dark:border-white/20 p-4 smart-sticky">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">诚信商家</h3>
+                  <Link to="/merchants" className="text-emerald-500 hover:text-emerald-400 text-sm transition-colors">查看全部</Link>
                 </div>
+                <div className="space-y-2">
+                  {merchants.length === 0 ? (
+                    <div className="text-center text-gray-600 dark:text-gray-400 text-sm py-8">暂无商家信息</div>
+                  ) : (
+                  merchants.slice(0, 6).map((merchant) => {
+                    // 统一所有分类的联系方式颜色为绿色
+                    const getContactColor = () => {
+                      return 'text-emerald-400';
+                    };
+                    
+                    // 根据类别确定卡片边框颜色
+                    const getBorderColor = () => {
+                      switch(merchant.category) {
+                        case 'gold': return 'hover:border-emerald-500/30';
+                        case 'advertiser': return 'hover:border-purple-500/30';
+                        default: return 'hover:border-blue-500/30';
+                      }
+                    };
+                    
+                    return (
+                      <div 
+                        key={merchant.id} 
+                        className={`bg-white/90 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 rounded-lg p-3 transition-colors cursor-pointer border border-gray-200 dark:border-white/10 ${getBorderColor()}`}
+                      >
+                <div>
+                          <h4 className="text-gray-900 dark:text-white font-semibold mb-1.5 text-sm">{merchant.name}</h4>
+                          <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">
+                            {merchant.description || 
+                             (merchant.category === 'gold' ? '金牌服务商 - 优质体育用品供应' :
+                              merchant.category === 'advertiser' ? '广告商 - 专业品牌推广' : '服务商 - 专业体育服务')}
+                          </p>
+                          {(() => {
+                            // 提取emoji和联系方式
+                            const contactInfo = merchant.contact_info || '';
+                            
+                            // 检查是否以特定emoji开头
+                            let emoji = '📧';
+                            let contactText = contactInfo;
+                            
+                            if (contactInfo.startsWith('📧')) {
+                              emoji = '📧';
+                              contactText = contactInfo.substring(2);
+                            } else if (contactInfo.startsWith('✈️')) {
+                              emoji = '✈️';
+                              contactText = contactInfo.substring(2);
+                            } else if (contactInfo.startsWith('🐧')) {
+                              emoji = '🐧';
+                              contactText = contactInfo.substring(2);
+                            } else if (contactInfo.startsWith('🌍')) {
+                              emoji = '🌍';
+                              contactText = contactInfo.substring(2);
+                            }
+                            
+                            return (
+                              <div className={`flex items-center ${getContactColor()} text-sm mb-2`}>
+                                <span className="mr-1 text-base">{emoji}</span>
+                                <span className="force-italic">{contactText || '暂无联系方式'}</span>
+                </div>
+                            );
+                          })()}
               </div>
-                <div className="flex items-center space-x-4">
-                {user && (
-                    <button onClick={() => setShowNewPostForm(true)} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all duration-200 flex items-center space-x-2">
-                      <Plus className="w-4 h-4" /><span>发帖</span>
-                    </button>
-                )}
+                      </div>
+                    );
+                  }))}
+                  <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-4 pt-3 border-t border-gray-200 dark:border-white/10">
+                    共 {merchants.length} 家诚信商家
                 </div>
             </div>
           </div>
         </div>
 
-        {/* 主要内容区域 */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="space-y-6">
-
+            {/* 中间内容区域 */}
+            <div className="col-span-12 lg:col-span-6">
             {/* 子版块选择 */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* 各个子版块 */}
-                {categories.map((category) => {
-                  const stats = getSubforumStats(category.id);
-                  const isSelected = selectedCategory === category.id;
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                {subforums.map((subforum) => {
+                  const IconComponent = subforum.icon;
+                  
+                  // 定义每个子版块的颜色主题
+                  const getCardColors = () => {
+                    switch(subforum.color) {
+                      case 'emerald':
+                        return {
+                          bg: selectedCategory === subforum.category 
+                            ? 'bg-emerald-50 dark:bg-emerald-900/20 ring-2 ring-emerald-500 border-emerald-500/50' 
+                            : 'bg-emerald-50 dark:bg-emerald-900/10 hover:bg-emerald-100 dark:hover:bg-emerald-900/20',
+                          iconBg: selectedCategory === subforum.category
+                            ? 'bg-emerald-500/20 border-emerald-400 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-emerald-500/10 border-emerald-300 dark:border-emerald-600 text-emerald-600 dark:text-emerald-400',
+                          hoverText: 'text-emerald-600 dark:text-emerald-500'
+                        };
+                      case 'blue':
+                        return {
+                          bg: selectedCategory === subforum.category 
+                            ? 'bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500 border-blue-500/50' 
+                            : 'bg-blue-50 dark:bg-blue-900/10 hover:bg-blue-100 dark:hover:bg-blue-900/20',
+                          iconBg: selectedCategory === subforum.category
+                            ? 'bg-blue-500/20 border-blue-400 text-blue-600 dark:text-blue-400'
+                            : 'bg-blue-500/10 border-blue-300 dark:border-blue-600 text-blue-600 dark:text-blue-400',
+                          hoverText: 'text-blue-600 dark:text-blue-500'
+                        };
+                      case 'red':
+                        return {
+                          bg: selectedCategory === subforum.category 
+                            ? 'bg-red-50 dark:bg-red-900/20 ring-2 ring-red-500 border-red-500/50' 
+                            : 'bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20',
+                          iconBg: selectedCategory === subforum.category
+                            ? 'bg-red-500/20 border-red-400 text-red-600 dark:text-red-400'
+                            : 'bg-red-500/10 border-red-300 dark:border-red-600 text-red-600 dark:text-red-400',
+                          hoverText: 'text-red-600 dark:text-red-500'
+                        };
+                      default:
+                        return {
+                          bg: 'bg-gray-100 dark:bg-slate-800/70 border-gray-200 dark:border-slate-600/50',
+                          iconBg: 'bg-gray-300 dark:bg-slate-600/50 border-gray-400 dark:border-slate-500/50 text-gray-600 dark:text-slate-400',
+                          hoverText: 'text-gray-700 dark:text-gray-400'
+                        };
+                    }
+                  };
+                  
+                  const colors = getCardColors();
+                  
                   return (
-                    <div key={category.id} onClick={() => handleSubforumClick(category.id)} className={`cursor-pointer group transition-all duration-300 ${isSelected ? 'ring-2 ring-emerald-500 bg-emerald-500/10' : 'hover:scale-105 hover:shadow-xl'}`}>
-                      <div className="bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-sm rounded-xl border border-white/20 p-6 h-80 flex flex-col justify-between">
+                    <button
+                      key={subforum.id}
+                      onClick={() => {
+                        // 如果点击的是已选中的子版块，则取消选择（恢复到显示全部）
+                        if (selectedCategory === subforum.category) {
+                          setSelectedCategory('all');
+                        } else {
+                          setSelectedCategory(subforum.category);
+                        }
+                      }}
+                      className={`${colors.bg} backdrop-blur-sm rounded-xl border border-gray-200 dark:border-slate-600/50 p-4 h-64 flex flex-col justify-between transition-all duration-300 cursor-pointer group ${
+                        selectedCategory === subforum.category ? 'shadow-lg' : 'hover:shadow-lg'
+                      }`}
+                    >
                         <div className="text-center">
-                          <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4 ${category.id === 'general' ? 'bg-emerald-500/20 border-2 border-emerald-400/30' : category.id === 'business' ? 'bg-blue-500/20 border-2 border-blue-400/30' : 'bg-red-500/20 border-2 border-red-400/30'}`}>
-                            {category.id === 'general' ? (<Users className="w-8 h-8 text-emerald-400" />) : category.id === 'business' ? (<Briefcase className="w-8 h-8 text-blue-400" />) : (<AlertTriangle className="w-8 h-8 text-red-400" />)}
+                        <div className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center mb-2 border transition-colors ${colors.iconBg}`}>
+                          <IconComponent className="w-5 h-5" />
                           </div>
-                          <h3 className="text-xl font-bold text-white mb-2">{category.name}</h3>
-                          <p className="text-gray-400 text-sm">{category.description}</p>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1.5">{subforum.title}</h3>
+                        <p className="text-gray-600 dark:text-gray-400 text-xs">{subforum.description}</p>
                         </div>
-                        <div className="space-y-3">
-                          <div className="flex justify-between text-sm"><span className="text-gray-400">帖子数</span><span className="text-white font-semibold">{stats.totalPosts}</span></div>
-                          <div className="flex justify-between text-sm"><span className="text-gray-400">回复数</span><span className="text-white font-semibold">{stats.totalReplies}</span></div>
-                          <div className="text-xs text-gray-500">最新: {stats.latestPost}</div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-700 dark:text-gray-400">帖子数</span>
+                          <span className="text-gray-900 dark:text-white font-semibold">{subforum.stats.totalPosts}</span>
                         </div>
-                        <div className="flex items-center justify-center space-x-2 text-emerald-400 text-sm mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <span>点击查看</span>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-700 dark:text-gray-400">回复数</span>
+                          <span className="text-gray-900 dark:text-white font-semibold">{subforum.stats.totalReplies}</span>
                       </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-500">最新: {subforum.stats.latestPost}</div>
                       </div>
+                      <div className={`flex items-center justify-center space-x-2 text-sm mt-4 opacity-0 group-hover:opacity-100 transition-opacity font-medium ${colors.hoverText}`}>
+                        <span>点击切换</span>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                            </svg>
                     </div>
+                    </button>
                   );
                 })}
               </div>
 
             {/* 发帖表单 */}
-            {showNewPostForm && (
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 p-6 mb-6">
-                <h2 className="text-xl font-semibold text-white mb-4">发布新帖</h2>
-                <form onSubmit={handleNewPostSubmit}>
-                  <div className="space-y-4">
-                    <div><input type="text" placeholder="帖子标题 - 不超过15字符" className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500" value={newPost.title} onChange={(e) => setNewPost({ ...newPost, title: e.target.value.slice(0, 15) })} required /></div>
-                    <div>
-                      <select className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" value={newPost.category} onChange={(e) => setNewPost({ ...newPost, category: e.target.value })}>
-                        {categories.map(category => (<option key={category.id} value={category.id}>{category.name}</option>))}
-                      </select>
-                      <p className="text-sm text-emerald-400 mt-2">在 {categories.find(c => c.id === newPost.category)?.name} 中发帖</p>
+              {user && showPostForm && (
+                <div className="bg-white dark:bg-white/10 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-white/20 p-4 mb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">发布新帖子</h3>
+                      <span className="text-gray-900 dark:text-white mx-2">到</span>
+                    <button
+                      type="button"
+                      onClick={togglePostCategory}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all duration-200 text-sm font-medium flex items-center hover:scale-105"
+                      >
+                        <span>{selectedCategoryName}</span>
+                      </button>
                     </div>
-                    <div><textarea placeholder="帖子内容 - 不超过200字符" rows={6} className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500" value={newPost.content} onChange={(e) => setNewPost({ ...newPost, content: e.target.value.slice(0, 200) })} required /></div>
                     
-                    {/* 图片上传功能 */}
-                    <div className="bg-white/5 rounded-lg p-3 border border-white/10">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="text-white text-sm font-medium">📷 图片上传</div>
-                        <div className="text-gray-400 text-xs">
-                          {newPostImages.length}/9
+                    <div className="flex items-center space-x-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowPostForm(false)}
+                        className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+                        title="关闭"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                      <button
+                        type="submit"
+                        form="post-form"
+                        disabled={!hasSelectedCategory || !newPost.category}
+                        className={`px-6 py-2 rounded-lg transition-colors font-semibold ${
+                          !hasSelectedCategory || !newPost.category
+                            ? 'bg-gray-600 text-gray-500 cursor-not-allowed'
+                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        }`}
+                      >
+                        确认发布
+                    </button>
                   </div>
                 </div>
                       
-                      <div className="mb-3">
+                  <form id="post-form" onSubmit={handleCreatePost} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-800 dark:text-gray-300 mb-2">帖子标题</label>
                         <input
+                        type="text"
+                        value={newPost.title}
+                        onChange={(e) => setNewPost(prev => ({ ...prev, title: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-gray-900 dark:text-white placeholder-gray-600 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        placeholder="输入帖子标题..."
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-800 dark:text-gray-300 mb-2">帖子内容</label>
+                      <SimpleTextEditor
+                        value={newPost.content}
+                        onChange={(content) => setNewPost(prev => ({ ...prev, content }))}
+                        placeholder="分享你的想法..."
+                        rows={6}
+                      />
+                      
+                      {/* 工具栏 */}
+                      <div className="flex items-center space-x-2 mt-2">
+                        {/* 表情包按钮 */}
+                        <button
+                          type="button"
+                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                          className="p-2 text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                          title="添加表情"
+                        >
+                          <Smile className="w-5 h-5" />
+                        </button>
+                        
+                        {/* 图片按钮 */}
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="p-2 text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                          title="上传图片"
+                        >
+                          <Image className="w-5 h-5" />
+                        </button>
+                        
+                        {/* 隐藏的文件输入 */}
+                        <input
+                          ref={fileInputRef}
                           type="file"
                           accept="image/*"
                           multiple
-                          onChange={async (e) => {
-                            const files = e.target.files;
-                            if (files) {
-                              if (newPostImages.length + files.length > 9) {
-                                alert('最多只能上传9张图片');
-                                return;
-                              }
-                              
-                              try {
-                                const fileArray = Array.from(files);
-                                
-                                // 验证文件类型和大小
-                                const invalidFiles = fileArray.filter(file => {
-                                  if (!file.type.startsWith('image/')) return true;
-                                  if (file.size > 10 * 1024 * 1024) return true; // 10MB限制
-                                  return false;
-                                });
-                                
-                                if (invalidFiles.length > 0) {
-                                  alert(`以下文件格式不支持或文件过大: ${invalidFiles.map(f => f.name).join(', ')}`);
-                                  return;
-                                }
-
-                                // 创建FormData上传文件
-                                const formData = new FormData();
-                                fileArray.forEach(file => {
-                                  formData.append('images', file);
-                                });
-
-                                // 上传文件到服务器
-                                const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/upload/images`, {
-                                  method: 'POST',
-                                  body: formData,
-                                });
-
-                                const result = await response.json();
-                                
-                                if (result.success) {
-                                  // 更新图片列表，存储文件路径
-                                  const imagePaths = result.files.map(file => file.path);
-                                  setNewPostImages([...newPostImages, ...imagePaths]);
-                                } else {
-                                  alert(`上传失败: ${result.error}`);
-                                }
-                              } catch (error) {
-                                console.error('图片上传失败:', error);
-                                alert('图片上传失败，请重试');
-                              }
-                            }
-                          }}
+                          onChange={handleDirectImageUpload}
                           className="hidden"
-                          id="new-post-image-upload"
                         />
-                        <label
-                          htmlFor="new-post-image-upload"
-                          className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 cursor-pointer transition-colors"
+                        
+                        {/* @按钮 */}
+                        <button
+                          type="button"
+                          onClick={addMention}
+                          className="p-2 text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                          title="@用户"
                         >
-                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                          </svg>
-                          添加图片 (最多9张)
-                        </label>
+                          <AtSign className="w-5 h-5" />
+                        </button>
                                     </div>
                       
-                      {newPostImages.length > 0 && (
-                        <div className="grid grid-cols-4 gap-2 mb-3">
-                          {newPostImages.map((imagePath, index) => (
-                            <div key={index} className="relative">
-                              <img
-                                src={buildImageUrl(imagePath)}
-                                alt={`上传的图片 ${index + 1}`}
-                                className="w-full h-16 object-cover rounded-md border border-white/20"
-                              />
+                      {/* 表情包选择器 */}
+                      {showEmojiPicker && (
+                        <div className="mt-3 p-3 bg-white dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/20">
+                          <div className="grid grid-cols-8 gap-2">
+                            {['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏'].map((emoji) => (
                               <button
+                                key={emoji}
                                 type="button"
-                                onClick={() => {
-                                  const newImages = newPostImages.filter((_, i) => i !== index);
-                                  setNewPostImages(newImages);
-                                }}
-                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 text-xs"
+                                onClick={() => addEmoji(emoji)}
+                                className="p-2 text-2xl hover:bg-gray-100 dark:hover:bg-white/20 rounded transition-colors"
                               >
-                                ×
+                                {emoji}
                               </button>
-                            </div>
                           ))}
+                          </div>
                         </div>
                   )}
                       
-                      <div className="text-xs text-gray-400">
-                        JPG/PNG/GIF • 单张≤5MB • 最多9张
+                      {/* 图片预览 */}
+                      {newPostImages.length > 0 && (
+                        <div className="mt-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm text-gray-800 dark:text-gray-300">已上传 {newPostImages.length}/9 张图片</span>
                 </div>
+                          <div className="grid grid-cols-3 gap-3">
+                            {newPostImages.map((url, index) => (
+                              <div key={index} className="relative group">
+                                <div className="aspect-square rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800">
+                                  <img
+                                    src={url}
+                                    alt={`上传的图片 ${index + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
               </div>
                     
-                    <div className="flex items-center justify-end space-x-4">
-                      <button type="button" onClick={() => setShowNewPostForm(false)} className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200">取消</button>
-                      <button type="submit" className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all duration-200">发布帖子</button>
+                                {/* 删除按钮 */}
+                      <button
+                                  type="button"
+                                  onClick={() => setNewPostImages(newPostImages.filter((_, i) => i !== index))}
+                                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                      >
+                                  <X className="w-3 h-3" />
+                      </button>
                     </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
             </div>
                 </form>
               </div>
             )}
 
-            {/* 帖子列表 */}
-            <div className="mt-12">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-white">
-                  {selectedCategory === 'all' ? '最新帖子' : `${categories.find(c => c.id === selectedCategory)?.name} 帖子`}
-                </h2>
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                      <Filter className="w-4 h-4 text-gray-400" />
-                      <select className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                      <option value="latest">最新活动</option><option value="oldest">最早发布</option><option value="popular">最受欢迎</option><option value="replies">回复最多</option>
-                      </select>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <span className="text-gray-400">{sortedPosts.length} 个帖子</span>
-                    {user && (
-                    <button onClick={() => setShowNewPostForm(true)} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all duration-200 flex items-center space-x-2">
-                      <Plus className="w-4 h-4" /><span>发帖</span>
+                {/* 最新帖子 */}
+              <div className="bg-white dark:bg-white/10 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-white/20 p-4">
+                <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-xl font-bold text-gray-900 dark:text-white">最新帖子</h2>
+                  {!showPostForm && (
+                  <button 
+                      onClick={() => setShowPostForm(!showPostForm)}
+                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all duration-200 flex items-center space-x-2 text-sm font-semibold hover:scale-105 shadow-lg"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>发布新帖子</span>
                     </button>
                     )}
                   </div>
+
+
+                {/* 帖子列表 */}
+        <div ref={postsContainerRef} className="space-y-3">
+                    {loading ? (
+                    <div className="flex justify-center py-8">
+                      <div className="loading-spinner"></div>
                 </div>
-              </div>
-              <div className="space-y-3 stagger-children" style={{ '--stagger-delay': '9' } as React.CSSProperties}>
-                {sortedPosts.length === 0 ? (
-                  <div className="text-center py-12">
-                    <MessageSquare className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-white mb-2">暂无帖子</h3>
-                    <p className="text-gray-300">{selectedCategory === 'all' ? '暂无帖子，快来发布第一个帖子吧！' : '该版块暂无帖子，快来发布第一个帖子吧！'}</p>
+                  ) : filteredPosts.length === 0 ? (
+                    <div className="text-center py-8 text-gray-700 dark:text-gray-400">
+                      <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>暂无帖子，快来发布第一个帖子吧！</p>
                   </div>
                 ) : (
-                  sortedPosts.map((post) => {
-                    // 安全获取作者信息（使用更严格的检查）
-                    const author = getSafePostAuthorStrict(post);
-                    const authorId = getSafeUserId(post.author_id || post.user_id);
-                    
-                    console.log('📝 ForumPage渲染帖子:', {
-                      postId: post.id,
-                      author: author,
-                      authorId: authorId,
-                      authorType: typeof author
-                    });
-                    
-                    // 如果作者信息无效，跳过渲染
-                    if (!author) {
-                      console.warn('📝 ForumPage: 跳过无效作者帖子:', post.id, 'author:', author);
-                      return null;
-                    }
-                    
-                    const avatarUrl = getUserAvatar(author);
-                    const lastReplyTime = post.replies && post.replies.length > 0 ? formatTimeAgo(post.replies[post.replies.length - 1].createdAt) : formatTimeAgo(post.timestamp);
-                    return (
-                      <div key={post.id} className="block bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 hover:border-emerald-400 transition-all duration-300 overflow-hidden"
-                        style={{ 
-                          // 优化方案：更合理的高度和间距
-                          height: '180px'
-                        }}>
-                        <div className="p-3 h-full">
-                          <div className="flex gap-4 h-full">
-                            {/* 左侧用户信息 - 优化尺寸和布局 */}
-                            <div className="flex flex-col items-center justify-between py-2 flex-shrink-0 w-20">
-                              <div 
+                    filteredPosts.map((post) => (
+                      <div 
+                        key={post.id} 
+                        className={`bg-white dark:bg-white/5 backdrop-blur-sm rounded-lg border border-gray-200 dark:border-white/10 p-4 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors relative cursor-pointer ${editingPostId === post.id ? 'z-[100]' : ''}`}
+                        onClick={() => navigate(`/forum/post/${post.id}`)}
+                      >
+                        {/* 管理齿轮图标 - 仅作者或管理员可见 */}
+                        {((user?.isAdmin || user?.is_admin) || user?.id === (post.author_id || post.author?.id)) && (
+                          <div className="absolute top-4 right-4 z-[9999] post-menu-container">
+                            <button 
                                 onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  if (authorId && authorId !== user?.id) {
-                                    openChatWith({
-                                      id: authorId,
-                                      username: author,
-                                      avatar: avatarUrl
-                                    });
-                                  }
-                                }}
-                                className="cursor-pointer hover:scale-105 transition-transform"
-                                title={`与 ${author} 私信`}
-                              >
-                                <UserAvatar 
-                                  username={author} 
-                                  size="lg"
-                                  className="w-16 h-16 border-2 border-white/20"
-                                />
-                              </div>
-                              <div className="text-center w-full">
-                                <div className="font-semibold text-white text-sm mb-1 truncate">{author}</div>
-                                <div className="w-full flex items-center justify-center">
-                                  <UserLevelComponent username={author} />
-                                </div>
-                              </div>
-                            </div>
+                                toggleEditMenu(post.id, e);
+                              }}
+                              className="p-2 rounded-full bg-gray-200 dark:bg-gray-800/80 hover:bg-gray-300 dark:hover:bg-gray-700/80 text-gray-800 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors" 
+                              title="管理帖子"
+                            >
+                              <Settings className="w-4 h-4" />
+                            </button>
                             
-                            {/* 右侧内容区域 */}
-                            <div className="flex-1 min-w-0 flex flex-col relative">
-                              {/* 管理员删除按钮 - 绝对定位在右上角 */}
-                              {user?.isAdmin && (
+                            {/* 管理菜单 */}
+                            {editingPostId === post.id && (
+                              <div className="absolute top-10 right-0 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-slate-600 min-w-[200px] py-2">
+                                <div className="px-3 py-1 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-slate-600">
+                                  选择子版块
+                                </div>
                                 <button
                                   onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleDeletePost(post.id, post.title);
+                                  e.stopPropagation();
+                                    handleChangeCategory(post.id, 'general');
                                   }}
-                                  className="absolute top-0 right-0 p-1.5 rounded-lg transition-all duration-200 z-20 text-red-400 hover:text-red-300 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 bg-red-500/10"
-                                  title="删除帖子"
+                                  className="w-full px-4 py-2 text-left text-sm text-emerald-600 dark:text-emerald-400 hover:bg-gray-100 dark:hover:bg-slate-700"
                                 >
-                                  <Trash2 size={14} />
+                                  行业茶水间
                                 </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleChangeCategory(post.id, 'business');
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-slate-700"
+                                >
+                                  商务&合作
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleChangeCategory(post.id, 'news');
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-700"
+                                >
+                                  黑榜曝光
+                                </button>
+                                <div className="border-t border-gray-200 dark:border-slate-600 my-1"></div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeletePost(post.id);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                                >
+                                  删除帖子
+                                </button>
+                              </div>
+                            )}
+                                    </div>
                               )}
                               
-                              {/* 可点击的内容区域 */}
-                              <Link 
-                                to={`/forum/post/${String(post.id)}`} 
-                                className="flex-1 flex flex-col hover:bg-white/5 rounded-lg p-2 -m-2 ml-4 transition-colors relative"
+                        <div className="flex items-start space-x-3 group">
+                          <div 
+                                className="cursor-pointer hover:scale-105 transition-transform"
+                            title={`点击查看 ${post.author} 的用户信息`}
+                            onClick={(e) => e.stopPropagation()}
                               >
-                                <div className="flex items-start justify-between mb-2 pr-8">
-                                  <div className="flex items-center space-x-2">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${post.category === 'general' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30' : post.category === 'business' ? 'bg-blue-500/20 text-blue-300 border-blue-400/30' : 'bg-red-500/20 text-red-300 border-red-400/30'}`}>
-                                      {categories.find(c => c.id === post.category)?.name || post.category}
-                                    </span>
-                                  </div>
-                                <div className="flex items-center space-x-2 text-xs text-gray-400 relative z-[1]">
-                                    <div className="flex items-center space-x-1">
-                                      <Clock size={12} />
-                                      <span>{formatTimeAgo(getPostTimestamp(post))}</span>
+                                <UserAvatar 
+                              username={post.author}
+                              size="md"
+                              className="w-12 h-12"
+                                />
+                              </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <span className="font-medium text-gray-900 dark:text-white">
+                                {post.author}
+                              </span>
+                              {(() => {
+                                const userLevel = post.author_points ? getUserLevel(post.author_points) : USER_LEVELS[0];
+                                return (
+                                  <span 
+                                    className="text-xs px-2 py-1 rounded-full text-white"
+                                    style={{ backgroundColor: `${userLevel.color}40`, color: userLevel.color }}
+                                  >
+                                    {userLevel.name}
+                                  </span>
+                                );
+                              })()}
+                              <span className="text-gray-600 dark:text-gray-400 text-xs">{formatTimeAgo(post.timestamp)}</span>
+                                </div>
+                            <div className="text-lg font-semibold text-gray-900 dark:text-white mb-2 hover:text-emerald-400 dark:hover:text-emerald-400">
+                                      {post.title}
+                              </div>
+                            <div className="text-gray-700 dark:text-gray-300 text-sm mb-2 line-clamp-2">
+                              <HtmlContent content={fixImageUrlsInContent(post.content)} hideImages={true} />
+                            </div>
+                            
+                            {/* 帖子图片预览 - 使用原有的PostImageGallery组件 */}
+                            <div className="mb-3">
+                                      <PostImageGallery 
+                                images={extractImagesFromContent(post.content)}
+                                maxPreviewImages={3}
+                                className="mt-1"
+                                  />
+                                </div>
+
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 text-sm">
+                                <span className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-800/50 px-3 py-1 rounded-full text-gray-700 dark:text-gray-300">
+                                        <MessageSquare className="w-4 h-4" />
+                                  <span className="font-medium">{post.replies?.length || 0} 条回复</span>
+                                      </span>
                                     </div>
-                                    {post.replies && post.replies.length > 0 && (
-                                      <div className="flex items-center space-x-1 text-emerald-400">
-                                        <MessageSquare size={12} />
-                                        <span>{formatTimeAgo(post.replies[post.replies.length - 1].createdAt)}</span>
+                                    {(() => {
+                                      const categoryName = categoryMapping[post.category] || '其他';
+                                      
+                                      // 根据类别确定颜色
+                                      let colorClass = 'slate';
+                                      if (categoryName === '行业茶水间') {
+                                        colorClass = 'emerald';
+                                      } else if (categoryName === '商务＆合作' || categoryName === '商务&合作') {
+                                        colorClass = 'blue';
+                                      } else if (categoryName === '黑榜曝光') {
+                                        colorClass = 'red';
+                                      }
+                                      
+                                      return (
+                                        <span className={`text-${colorClass}-400 text-xs bg-${colorClass}-500/20 px-2 py-1 rounded-full`}>
+                                          {categoryName}
+                                    </span>
+                                      );
+                                    })()}
+                                  </div>
+                                </div>
+                                  </div>
+                                    </div>
+                    ))
+                                    )}
+                                  
+                  {/* 分页组件 */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center mt-8 space-x-2">
+                                <button
+                        onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                                >
+                        上一页
+                                </button>
+                      
+                      <div className="flex space-x-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          const page = i + 1;
+                          return (
+                            <button
+                              key={page}
+                              onClick={() => handlePageChange(page)}
+                              className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                currentPage === page
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          );
+                        })}
+                                  </div>
+                      
+                      <button
+                        onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                              >
+                        下一页
+                      </button>
+                    </div>
+                  )}
+                                  </div>
+              </div>
+            </div>
+
+            {/* 右侧边栏 */}
+            <div className="col-span-12 lg:col-span-3">
+              <div className="space-y-4 smart-sticky">
+                {/* 黑榜曝光 */}
+                <div className="bg-white dark:bg-white/10 backdrop-blur-sm rounded-xl border border-gray-300 dark:border-white/20 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">黑榜曝光</h3>
+                    <Link to="/blacklist" className="text-red-400 hover:text-red-300 text-sm transition-colors">查看全部</Link>
+                                        </div>
+                  <div className="space-y-2">
+                    {blacklistEntries.length > 0 ? (
+                      blacklistEntries.slice(0, 6).map((entry, index) => (
+                        <div key={index} className="relative bg-white/90 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 rounded-lg p-3 transition-colors cursor-pointer border border-gray-200 dark:border-white/10 hover:border-red-500/30">
+                          {/* 右上角手写体盖章 */}
+                          <span className={`absolute top-2 right-2 border px-3 py-1 rounded rotate-[10deg] text-sm font-bold ${entry.report_source === 'platform' ? 'text-red-400/80 border-red-400/60' : 'text-blue-400/80 border-blue-400/60'}`} style={{ fontFamily: 'cursive' }}>
+                            {entry.report_source === 'platform' ? '官方核实' : '用户举报'}
+                                    </span>
+                          <div>
+                            <h4 className="text-gray-900 dark:text-white font-semibold mb-1.5 text-sm">{entry.name}</h4>
+                            <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">
+                              {entry.description}
+                            </p>
+                            {(() => {
+                              const contactInfo = entry.contact_info || '';
+                              let emoji = '📧';
+                              let text = contactInfo;
+                              if (contactInfo.startsWith('📧')) { emoji = '📧'; text = contactInfo.substring(2); }
+                              else if (contactInfo.startsWith('✈️')) { emoji = '✈️'; text = contactInfo.substring(2); }
+                              else if (contactInfo.startsWith('🐧')) { emoji = '🐧'; text = contactInfo.substring(2); }
+                              else if (contactInfo.startsWith('🌍')) { emoji = '🌍'; text = contactInfo.substring(2); }
+                              return contactInfo ? (
+                                <div className="flex items-center text-red-400 text-sm mb-2">
+                                  <span className="mr-1 text-base">{emoji}</span>
+                                  <span className="force-italic">{text}</span>
+                                  </div>
+                              ) : null;
+                            })()}
+                            <div className="flex items-center justify-end text-sm text-gray-400">
+                              <span>{entry.exposed_date}</span>
+                                    </div>
+                                </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-sm text-gray-400">暂无黑榜信息</p>
                                       </div>
+                                    )}
+                    {blacklistEntries.length > 0 && (
+                      <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-4 pt-3 border-t border-gray-200 dark:border-white/10">
+                        共 {blacklistEntries.length} 条曝光记录
+                      </div>
                                     )}
                                   </div>
                                 </div>
                                 
-                                <h3 className="text-base font-semibold text-white mb-2 hover:text-emerald-400 transition-colors line-clamp-1 pr-8">{post.title}</h3>
-                                
-                                {/* 内容区域 - 微调方案：统一高度，内容差异化 */}
-                                <div className="flex-1 flex flex-col relative z-[0]">
-                                  {(() => {
-                                    const images = extractImagesFromContent(post.content);
-                                    const textContent = getTextContent(post.content);
-                                    
-                                    if (images.length > 0) {
-                                      // 有图片的帖子：仅渲染图片区域
-                                      return (
-                                        <div className="w-full flex justify-center" style={{ marginTop: -6 }}>
-                                          <PostImageGallery 
-                                            images={images} 
-                                            maxPreviewImages={3}
-                                            className="h-full"
+                {/* 当前在线 */}
+                <div className="bg-white dark:bg-white/10 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-white/20 p-4">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-3">当前在线</h3>
+                  <div className="space-y-2">
+                    {onlineUsers.length > 0 ? (
+                      onlineUsers.map((user) => (
+                      <div key={user.id} className="flex items-center space-x-3">
+                          <RealTimeAvatar 
+                            user={user} 
+                              size="sm"
+                              className="w-8 h-8"
                                           />
-                                        </div>
-                                      );
-                                    } else {
-                                      // 无图片的帖子：显示HTML内容预览（紧凑样式）
-                                      return (
-                                        <div className="flex-1 flex flex-col justify-center py-1">
-                                          <HtmlContent 
-                                            content={post.content} 
-                                            className="post-preview text-gray-300 text-sm leading-snug line-clamp-4"
-                                          />
-                                          {textContent.length > 250 && (
-                                            <p className="text-emerald-400 text-xs mt-1">点击查看完整内容</p>
-                                          )}
-                                        </div>
-                                      );
+                        <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">{user.username}</div>
+                            <div className="flex flex-wrap gap-1">
+                              {(() => {
+                                // 胶囊显示，与用户卡片一致
+                                const renderPill = (label: string) => (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-400/30" key={label}>
+                                    {label}
+                                  </span>
+                                );
+
+                                // 优先 roles 数组（按 id 匹配 INDUSTRY_ROLES）
+                                if (Array.isArray(user.roles) && user.roles.length > 0) {
+                                  const labels = user.roles
+                                    .map((rid: string) => INDUSTRY_ROLES.find(r => r.id === rid)?.label)
+                                    .filter(Boolean) as string[];
+                                  if (labels.length > 0) return labels.slice(0, 3).map(renderPill);
+                                }
+
+                                // 其次 role 文本（做容错映射）
+                                if (user.role) {
+                                  const s = (user.role || '').toString().trim().toLowerCase();
+                                  const dict: Record<string, string> = {
+                                    '主播': '主播', 'anchor': '主播', 'streamer': '主播',
+                                    '甲方': '甲方', 'party a': '甲方', 'partya': '甲方', 'party_a': '甲方', 'client': '甲方', '客户': '甲方',
+                                    '服务商': '服务商', 'service': '服务商', 'provider': '服务商', 'vendor': '服务商',
+                                    '其他': '其他', 'other': '其他', 'user': '其他', '普通用户': '其他'
+                                  };
+                                  const label = dict[s] || dict[s.replace(/\s+/g, '')] || '其他';
+                                  return renderPill(label);
                                     }
+
+                                return renderPill('其他');
                                   })()}
                                 </div>
-                                {/* 统一的“x回复”徽标：固定在内容区域左侧的统一位置 */}
-                                <div className="absolute z-[2] inline-flex items-center space-x-1 text-xs text-gray-400" style={{ top: '100px', right: '40px' }}>
-                                  <Reply size={12} />
-                                  <span>{getRepliesCount(post)} 回复</span>
                                 </div>
-                              </Link>
+                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                             </div>
+                      ))
+                    ) : (
+                      <div className="text-center text-gray-600 dark:text-gray-400 text-sm py-4">
+                        暂无在线用户
                           </div>
+                    )}
+                    <div className="text-center text-xs text-gray-500 dark:text-gray-500 mt-2">
+                      共 {totalOnlineUsers} 人在线
                         </div>
                       </div>
-                    );
-                  })
-                )}
+              </div>
               </div>
             </div>
           </div>
@@ -833,21 +1190,17 @@ const ForumPage: React.FC = () => {
 
         {/* 移动端发帖按钮 */}
         {user && (
-          <button onClick={() => navigate('/forum/new', { state: { from: '/forum' } })} className="fixed bottom-6 right-6 md:hidden w-14 h-14 bg-emerald-600 text-white rounded-full shadow-lg hover:bg-emerald-700 transition-all duration-200 flex items-center justify-center hover:scale-110">
+          <button 
+            onClick={() => navigate('/forum/new', { state: { from: '/forum' } })}
+            className="fixed bottom-6 right-6 md:hidden w-14 h-14 bg-emerald-600 text-white rounded-full shadow-lg hover:bg-emerald-700 transition-all duration-200 flex items-center justify-center hover:scale-110"
+          >
             <Plus className="w-6 h-6" />
           </button>
         )}
 
+
         {/* Token清理组件 */}
         {showTokenCleaner && <TokenCleaner />}
-
-        {/* Toast通知 */}
-        <Toast 
-          visible={toast.visible} 
-          message={toast.message} 
-          type={toast.type}
-          onClose={() => setToast({ ...toast, visible: false })}
-        />
       </div>
     </PageTransition>
   );

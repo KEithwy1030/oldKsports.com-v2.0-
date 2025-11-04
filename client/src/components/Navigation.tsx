@@ -1,11 +1,16 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { User, LogOut, Menu, X, Bell, MessageCircle, AtSign, Mail, AlertCircle } from 'lucide-react';
+import { useChat } from '../context/ChatContext';
+import { useTheme } from '../context/ThemeContext';
+import { User, LogOut, Menu, X, Bell, MessageCircle, AtSign, Mail, AlertCircle, Sun, Moon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const Navigation: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
+  const { openChat, isOpen, totalUnreadCount } = useChat();
+  const { theme, toggleTheme, isDark } = useTheme();
+
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -138,11 +143,11 @@ const Navigation: React.FC = () => {
 
   return (
     <>
-    <nav className="sticky top-0 z-50 bg-gradient-radial from-slate-700 to-slate-900">
+    <nav className="sticky top-0 z-50 bg-gradient-radial from-white to-gray-100 dark:from-slate-700 dark:to-slate-900 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="text-white font-bold text-xl">
+          <Link to="/" className="text-gray-900 dark:text-white font-bold text-xl">
             OldKSports
           </Link>
 
@@ -156,7 +161,7 @@ const Navigation: React.FC = () => {
                   className={`text-sm font-medium transition-colors ${
                     location.pathname === link.to
                       ? 'text-emerald-400'
-                      : 'text-gray-300 hover:text-white'
+                      : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
                   {link.label}
@@ -168,7 +173,7 @@ const Navigation: React.FC = () => {
                   className={`text-sm font-medium transition-colors ${
                     location.pathname === link.to
                       ? 'text-emerald-400'
-                      : 'text-gray-300 hover:text-white'
+                      : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
                   {link.label}
@@ -189,7 +194,7 @@ const Navigation: React.FC = () => {
                 >
                   <Link
                     to="/profile"
-                    className="flex items-center space-x-2 text-gray-300 hover:text-emerald-400 transition-colors relative px-2 py-1 rounded-lg"
+                    className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-emerald-400 transition-colors relative px-2 py-1 rounded-lg"
                   >
                     <User className="w-4 h-4" />
                     <span className="text-sm">{user?.username}</span>
@@ -202,9 +207,9 @@ const Navigation: React.FC = () => {
                       </span>
                     )}
                     {/* 通知数字 - 微信风格 */}
-                    {notificationCounts.total > 0 && (
+                    {(notificationCounts.total + totalUnreadCount) > 0 && (
                       <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg">
-                        {notificationCounts.total > 99 ? '99+' : notificationCounts.total}
+                        {(notificationCounts.total + totalUnreadCount) > 99 ? '99+' : (notificationCounts.total + totalUnreadCount)}
                       </div>
                     )}
                   </Link>
@@ -212,7 +217,7 @@ const Navigation: React.FC = () => {
                   {/* 通知下拉菜单 - 带渐隐动画 */}
                   {showNotificationDropdown && (
                     <div 
-                      className={`absolute right-0 mt-3 w-72 z-[9999] bg-slate-800/95 rounded-2xl border border-slate-600/50 shadow-2xl backdrop-blur-lg overflow-hidden transition-all duration-1000 ease-out ${
+                      className={`absolute right-0 mt-3 w-72 z-[9999] bg-white/95 dark:bg-slate-800/95 rounded-2xl border border-gray-200/50 dark:border-slate-600/50 shadow-2xl backdrop-blur-lg overflow-hidden transition-all duration-1000 ease-out ${
                         isAnimatingOut 
                           ? 'opacity-0 scale-95 translate-y-2' 
                           : 'opacity-100 scale-100 translate-y-0'
@@ -228,12 +233,12 @@ const Navigation: React.FC = () => {
                       }}
                     >
                       {/* 通知标题区域 */}
-                      <div className="px-5 py-4 border-b border-slate-700/50 bg-transparent">
+                      <div className="px-5 py-4 border-b border-gray-200/50 dark:border-slate-700/50 bg-transparent">
                         <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-semibold text-white">通知消息</h3>
-                          {notificationCounts.total > 0 && (
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">通知消息</h3>
+                          {(notificationCounts.total + totalUnreadCount) > 0 && (
                             <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-xs font-bold rounded-full px-3 py-1 shadow-lg">
-                              {notificationCounts.total > 99 ? '99+' : notificationCounts.total}
+                              {(notificationCounts.total + totalUnreadCount) > 99 ? '99+' : (notificationCounts.total + totalUnreadCount)}
                             </div>
                           )}
                         </div>
@@ -248,7 +253,7 @@ const Navigation: React.FC = () => {
                             navigate('/notifications?type=reply');
                             setShowNotificationDropdown(false);
                           }}
-                          className="group flex items-center justify-between w-full px-5 py-3 text-gray-300 hover:bg-gradient-to-r hover:from-blue-600/20 hover:to-blue-500/10 hover:text-white transition-all duration-300 bg-transparent"
+                          className="group flex items-center justify-between w-full px-5 py-3 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-600/20 hover:to-blue-500/10 hover:text-gray-900 dark:hover:text-white transition-all duration-300 bg-transparent"
                         >
                           <div className="flex items-center space-x-4">
                             <div className="w-10 h-10 bg-blue-600/20 rounded-full flex items-center justify-center group-hover:bg-blue-600/30 transition-colors">
@@ -270,7 +275,7 @@ const Navigation: React.FC = () => {
                               navigate('/notifications?type=mention');
                               setShowNotificationDropdown(false);
                             }}
-                            className="group flex items-center justify-between w-full px-5 py-3 text-gray-300 hover:bg-gradient-to-r hover:from-emerald-600/20 hover:to-emerald-500/10 hover:text-white transition-all duration-300 bg-transparent"
+                            className="group flex items-center justify-between w-full px-5 py-3 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-emerald-600/20 hover:to-emerald-500/10 hover:text-gray-900 dark:hover:text-white transition-all duration-300 bg-transparent"
                           >
                           <div className="flex items-center space-x-4">
                             <div className="w-10 h-10 bg-emerald-600/20 rounded-full flex items-center justify-center group-hover:bg-emerald-600/30 transition-colors">
@@ -288,7 +293,7 @@ const Navigation: React.FC = () => {
                         {/* 私信 */}
                         <button
                           onClick={() => markNotificationsAsRead('message')}
-                          className="group flex items-center justify-between w-full px-5 py-3 text-gray-300 hover:bg-gradient-to-r hover:from-purple-600/20 hover:to-purple-500/10 hover:text-white transition-all duration-300 bg-transparent"
+                          className="group flex items-center justify-between w-full px-5 py-3 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-purple-600/20 hover:to-purple-500/10 hover:text-gray-900 dark:hover:text-white transition-all duration-300 bg-transparent"
                         >
                           <div className="flex items-center space-x-4">
                             <div className="w-10 h-10 bg-purple-600/20 rounded-full flex items-center justify-center group-hover:bg-purple-600/30 transition-colors">
@@ -296,9 +301,9 @@ const Navigation: React.FC = () => {
                             </div>
                             <span className="font-medium">私信</span>
                           </div>
-                          {notificationCounts.message > 0 && (
+                          {totalUnreadCount > 0 && (
                             <div className="bg-purple-500 text-white text-xs font-bold rounded-full px-2.5 py-1 shadow-lg">
-                              {notificationCounts.message}
+                              {totalUnreadCount}
                             </div>
                           )}
                         </button>
@@ -310,7 +315,7 @@ const Navigation: React.FC = () => {
                               navigate('/notifications?type=system');
                               setShowNotificationDropdown(false);
                             }}
-                            className="group flex items-center justify-between w-full px-5 py-3 text-gray-300 hover:bg-gradient-to-r hover:from-amber-600/20 hover:to-amber-500/10 hover:text-white transition-all duration-300 bg-transparent"
+                            className="group flex items-center justify-between w-full px-5 py-3 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-amber-600/20 hover:to-amber-500/10 hover:text-gray-900 dark:hover:text-white transition-all duration-300 bg-transparent"
                           >
                           <div className="flex items-center space-x-4">
                             <div className="w-10 h-10 bg-amber-600/20 rounded-full flex items-center justify-center group-hover:bg-amber-600/30 transition-colors">
@@ -327,10 +332,10 @@ const Navigation: React.FC = () => {
                       </div>
 
                       {/* 底部操作区域 */}
-                      <div className="border-t border-slate-700/50 mt-1 bg-transparent">
+                      <div className="border-t border-gray-200/50 dark:border-slate-700/50 mt-1 bg-transparent">
                         <Link
                           to="/notifications"
-                          className="group flex items-center justify-center space-x-2 px-5 py-4 text-gray-400 hover:bg-gradient-to-r hover:from-slate-700/30 hover:to-slate-600/20 hover:text-emerald-400 transition-all duration-300 rounded-b-2xl"
+                          className="group flex items-center justify-center space-x-2 px-5 py-4 text-gray-600 dark:text-gray-400 hover:bg-gradient-to-r hover:from-slate-700/30 dark:hover:from-slate-700/30 hover:to-slate-600/20 hover:text-emerald-400 transition-all duration-300 rounded-b-2xl"
                         >
                           <Bell size={18} className="group-hover:scale-110 transition-transform" />
                           <span className="font-medium">查看全部通知</span>
@@ -340,8 +345,15 @@ const Navigation: React.FC = () => {
                   )}
                 </div>
                 <button
+                  onClick={toggleTheme}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all duration-200 border border-gray-300/30 dark:border-gray-600/30 hover:border-blue-500/50"
+                  title={isDark ? '切换到日间模式' : '切换到夜间模式'}
+                >
+                  {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </button>
+                <button
                   onClick={handleLogout}
-                  className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-200 border border-gray-600/30 hover:border-red-500/50"
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-200 border border-gray-300/30 dark:border-gray-600/30 hover:border-red-500/50"
                   title="退出登录"
                 >
                   <LogOut className="w-4 h-4" />
@@ -350,8 +362,15 @@ const Navigation: React.FC = () => {
             ) : (
               <div className="flex items-center space-x-3">
                 <button
-                  onClick={() => handleAuthNavigation('/login')}
-                  className="text-sm font-medium transition-colors text-gray-300 hover:text-white"
+                  onClick={toggleTheme}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all duration-200 border border-gray-300/30 dark:border-gray-600/30 hover:border-blue-500/50"
+                  title={isDark ? '切换到日间模式' : '切换到夜间模式'}
+                >
+                  {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={handleAuthNavigation('/login')}
+                  className="text-sm font-medium transition-colors text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                 >
                   登录
                 </button>

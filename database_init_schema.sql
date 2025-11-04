@@ -95,18 +95,18 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE TABLE IF NOT EXISTS messages (
     id INT AUTO_INCREMENT PRIMARY KEY,
     sender_id INT NOT NULL,
-    recipient_id INT NOT NULL,
+    receiver_id INT NOT NULL,
     content TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
     is_read TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     KEY idx_sender (sender_id),
-    KEY idx_recipient (recipient_id),
-    KEY idx_conversation (sender_id, recipient_id),
+    KEY idx_receiver (receiver_id),
+    KEY idx_conversation (sender_id, receiver_id),
     KEY idx_read_status (is_read),
     KEY idx_created_at (created_at),
     CONSTRAINT messages_ibfk_1 FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT messages_ibfk_2 FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE
+    CONSTRAINT messages_ibfk_2 FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 商户表
@@ -116,10 +116,6 @@ CREATE TABLE IF NOT EXISTS merchants (
     description TEXT COLLATE utf8mb4_unicode_ci,
     category ENUM('gold', 'advertiser', 'streamer') COLLATE utf8mb4_unicode_ci NOT NULL,
     contact_info VARCHAR(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-    website VARCHAR(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-    logo_url VARCHAR(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-    rating DECIMAL(3,2) DEFAULT 0.00,
-    status ENUM('active', 'inactive', 'pending') COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
     created_by INT NOT NULL,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -130,35 +126,33 @@ CREATE TABLE IF NOT EXISTS merchants (
 -- 黑名单表
 CREATE TABLE IF NOT EXISTS blacklist (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    merchant_name VARCHAR(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-    violation_type VARCHAR(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+    merchant_name VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+    violation_type VARCHAR(100) COLLATE utf8mb4_unicode_ci DEFAULT 'unspecified',
     description TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
     evidence_urls TEXT COLLATE utf8mb4_unicode_ci,
-    severity ENUM('low', 'medium', 'high', 'critical') COLLATE utf8mb4_unicode_ci DEFAULT 'medium',
-    status ENUM('pending', 'verified', 'resolved', 'dismissed') COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
+    report_source ENUM('user', 'platform') COLLATE utf8mb4_unicode_ci DEFAULT 'user',
     created_by INT NOT NULL,
-    verified_by INT DEFAULT NULL,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     KEY created_by (created_by),
-    KEY verified_by (verified_by),
-    CONSTRAINT blacklist_ibfk_1 FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT blacklist_ibfk_2 FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL
+    CONSTRAINT blacklist_ibfk_1 FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 商户评论表
-CREATE TABLE IF NOT EXISTS merchant_reviews (
+-- 新手引导任务表
+CREATE TABLE IF NOT EXISTS onboarding_tasks (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    merchant_id INT NOT NULL,
     user_id INT NOT NULL,
-    rating INT DEFAULT NULL,
-    comment TEXT COLLATE utf8mb4_unicode_ci,
-    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_user_merchant (merchant_id, user_id),
-    KEY user_id (user_id),
-    CONSTRAINT merchant_reviews_ibfk_1 FOREIGN KEY (merchant_id) REFERENCES merchants(id) ON DELETE CASCADE,
-    CONSTRAINT merchant_reviews_ibfk_2 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT merchant_reviews_chk_1 CHECK (rating >= 1 AND rating <= 5)
+    task_id VARCHAR(255) NOT NULL,
+    reward INT DEFAULT 0,
+    completed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_shown_at DATETIME DEFAULT NULL,
+    dismissed_forever BOOLEAN DEFAULT FALSE,
+    progress INT DEFAULT 0,
+    target INT DEFAULT 1,
+    UNIQUE KEY unique_user_task (user_id, task_id),
+    KEY idx_user_id (user_id),
+    CONSTRAINT onboarding_tasks_ibfk_1 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================

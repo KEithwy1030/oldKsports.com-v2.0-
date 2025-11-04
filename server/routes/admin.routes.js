@@ -208,11 +208,15 @@ router.get('/merchants', authenticateToken, requireAdmin, async (req, res) => {
 // 添加商家
 router.post('/merchants', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { name, description, category, contact_info, website, logo_url } = req.body;
-    
+    const { name, description = '', category = 'gold', contact_info = null } = req.body || {};
+
+    if (!name) {
+      return res.status(400).json({ success: false, error: '缺少必填字段：name' });
+    }
+
     const result = await dbQuery(
-      'INSERT INTO merchants (name, description, category, contact_info, website, logo_url, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [name, description, category, contact_info, website, logo_url, req.user.id]
+      'INSERT INTO merchants (name, description, category, contact_info, created_by) VALUES (?, ?, ?, ?, ?)',
+      [name, description, category, contact_info, req.user.id]
     );
 
     res.json({ success: true, message: '商家添加成功', data: { id: result.insertId } });
@@ -226,11 +230,11 @@ router.post('/merchants', authenticateToken, requireAdmin, async (req, res) => {
 router.put('/merchants/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, category, contact_info, website, logo_url } = req.body;
+    const { name, description, category, contact_info } = req.body;
     
-    await dbQuery(
-      'UPDATE merchants SET name = ?, description = ?, category = ?, contact_info = ?, website = ?, logo_url = ? WHERE id = ?',
-      [name, description, category, contact_info, website, logo_url, id]
+    const result = await dbQuery(
+      'UPDATE merchants SET name = ?, description = ?, category = ?, contact_info = ?, updated_at = NOW() WHERE id = ?',
+      [name, description, category, contact_info, id]
     );
 
     res.json({ success: true, message: '商家更新成功' });
@@ -273,16 +277,46 @@ router.patch('/merchants/:id/status', authenticateToken, requireAdmin, async (re
 });
 
 // 黑榜管理相关路由
-// 获取所有黑榜记录
+// 获取公开黑榜记录（无需登录）
+router.get('/blacklist/public', async (req, res) => {
+  try {
+    const entries = await dbQuery(`
+      SELECT 
+        id,
+        IFNULL(merchant_name,'') as name,
+        violation_type,
+        IFNULL(description,'') as description,
+        evidence_urls as contact_info,
+        created_at,
+        created_by,
+        COALESCE(report_source, 'user') as report_source
+      FROM blacklist
+      ORDER BY created_at DESC
+      LIMIT 50
+    `);
+    res.json({ success: true, data: entries });
+  } catch (error) {
+    console.error('获取公开黑榜列表失败:', error);
+    res.status(500).json({ success: false, error: '获取公开黑榜列表失败' });
+  }
+});
+
+// 获取所有黑榜记录（管理员）
 router.get('/blacklist', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const entries = await dbQuery(`
-      SELECT b.*, 
-             u1.username as creator_username,
-             u2.username as verifier_username
+      SELECT 
+        b.id,
+        IFNULL(b.merchant_name,'') AS name,
+        IFNULL(b.description,'') AS description,
+        b.violation_type,
+        b.evidence_urls AS contact_info,
+        b.created_at,
+        b.created_by,
+        COALESCE(b.report_source, 'user') as report_source,
+        u1.username as creator_username
       FROM blacklist b
       LEFT JOIN users u1 ON b.created_by = u1.id
-      LEFT JOIN users u2 ON b.verified_by = u2.id
       ORDER BY b.created_at DESC
     `);
     res.json({ success: true, data: entries });
@@ -295,12 +329,37 @@ router.get('/blacklist', authenticateToken, requireAdmin, async (req, res) => {
 // 添加黑榜记录
 router.post('/blacklist', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { merchant_name, violation_type, description, evidence_urls, severity } = req.body;
-    
-    const result = await dbQuery(
-      'INSERT INTO blacklist (merchant_name, violation_type, description, evidence_urls, severity, created_by) VALUES (?, ?, ?, ?, ?, ?)',
-      [merchant_name, violation_type, description, evidence_urls, severity, req.user.id]
-    );
+    const body = req.body || {};
+    const merchant_name_raw = body.merchant_name ?? body.name ?? '';
+    const description_raw = body.description ?? '';
+    const violation_type = (body.violation_type ?? 'unspecified').toString();
+    const evidence_urls = (body.evidence_urls ?? body.contact_info ?? null) || null;
+    const report_source = (body.report_source ?? null);
+
+    const merchant_name = (typeof merchant_name_raw === 'string' ? merchant_name_raw : String(merchant_name_raw || '')).trim();
+    const description = (typeof description_raw === 'string' ? description_raw : String(description_raw || '')).trim();
+
+    if (!merchant_name || !description) {
+      return res.status(400).json({ success: false, error: '缺少必填字段：merchant_name 或 description' });
+    }
+
+    let result;
+    try {
+      result = await dbQuery(
+        'INSERT INTO blacklist (merchant_name, violation_type, description, evidence_urls, report_source, created_by) VALUES (?, ?, ?, ?, ?, ?)',
+        [merchant_name, violation_type, description, evidence_urls, report_source, req.user.id]
+      );
+    } catch (err) {
+      const msg = String(err?.message || '').toLowerCase();
+      if (msg.includes('unknown column') && msg.includes('report_source')) {
+        result = await dbQuery(
+          'INSERT INTO blacklist (merchant_name, violation_type, description, evidence_urls, created_by) VALUES (?, ?, ?, ?, ?)',
+          [merchant_name, violation_type, description, evidence_urls, req.user.id]
+        );
+      } else {
+        throw err;
+      }
+    }
 
     res.json({ success: true, message: '黑榜记录添加成功', data: { id: result.insertId } });
   } catch (error) {
@@ -313,12 +372,41 @@ router.post('/blacklist', authenticateToken, requireAdmin, async (req, res) => {
 router.put('/blacklist/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { merchant_name, violation_type, description, evidence_urls, severity } = req.body;
-    
-    const result = await dbQuery(
-      'UPDATE blacklist SET merchant_name = ?, violation_type = ?, description = ?, evidence_urls = ?, severity = ? WHERE id = ?',
-      [merchant_name, violation_type, description, evidence_urls, severity, id]
-    );
+    const body = req.body || {};
+    const merchant_name = (body.merchant_name ?? body.name ?? '').toString();
+    const description = (body.description ?? '').toString();
+    const violation_type = (body.violation_type ?? 'unspecified').toString();
+    const evidence_urls = (body.evidence_urls ?? body.contact_info ?? null) || null;
+    const report_source = (body.report_source ?? undefined);
+
+    const fields = ['merchant_name = ?', 'violation_type = ?', 'description = ?', 'evidence_urls = ?'];
+    const values = [merchant_name, violation_type, description, evidence_urls];
+    if (report_source) { fields.push('report_source = ?'); values.push(report_source); }
+    fields.push('updated_at = NOW()');
+    values.push(id);
+
+    let result;
+    try {
+      result = await dbQuery(
+        `UPDATE blacklist SET ${fields.join(', ')} WHERE id = ?`,
+        values
+      );
+    } catch (err) {
+      const msg = String(err?.message || '').toLowerCase();
+      if (msg.includes('unknown column') && msg.includes('report_source')) {
+        const idx = fields.findIndex(f => f.startsWith('report_source'));
+        if (idx !== -1) {
+          fields.splice(idx, 1);
+          values.splice(idx, 1);
+        }
+        result = await dbQuery(
+          `UPDATE blacklist SET ${fields.join(', ')} WHERE id = ?`,
+          values
+        );
+      } else {
+        throw err;
+      }
+    }
     
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, error: '黑榜记录未找到' });
@@ -345,33 +433,102 @@ router.delete('/blacklist/:id', authenticateToken, requireAdmin, async (req, res
   }
 });
 
+// 清空黑榜数据（仅开发/测试使用）
+router.delete('/blacklist', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    // 仅在开发环境启用防护
+    const env = process.env.NODE_ENV || 'development';
+    if (env !== 'development' && env !== 'test') {
+      return res.status(403).json({ success: false, error: '仅限开发/测试环境使用' });
+    }
+
+    await dbQuery('TRUNCATE TABLE blacklist');
+    res.json({ success: true, message: '已清空黑榜数据（开发环境）' });
+  } catch (error) {
+    console.error('清空黑榜数据失败:', error);
+    // 如果因外键或权限导致 TRUNCATE 失败，降级为 DELETE + 自增重置
+    try {
+      await dbQuery('DELETE FROM blacklist');
+      await dbQuery('ALTER TABLE blacklist AUTO_INCREMENT = 1');
+      return res.json({ success: true, message: '已删除所有黑榜记录并重置自增ID' });
+    } catch (e2) {
+      console.error('降级清理失败:', e2);
+      return res.status(500).json({ success: false, error: '清空黑榜数据失败' });
+    }
+  }
+});
+
 // 验证黑榜记录
 router.patch('/blacklist/:id/verify', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { verified, verification_notes } = req.body;
-    
-    const updateData = [];
-    const updateValues = [];
-    
-    if (verified !== undefined) {
-      updateData.push('verified = ?');
-      updateValues.push(verified);
+    const body = req.body || {};
+    // 前端传 { status }，兼容旧参数 verified/verification_notes
+    const status = body.status;
+    const verified = body.verified;
+    const verification_notes = body.verification_notes;
+
+    const updates = [];
+    const values = [];
+
+    if (status) {
+      updates.push('status = ?');
+      values.push(status);
+      if (status === 'verified') {
+        updates.push('verified_by = ?', 'verified_at = NOW()');
+        values.push(req.user.id);
+      }
     }
-    
-    if (verification_notes !== undefined) {
-      updateData.push('verification_notes = ?');
-      updateValues.push(verification_notes);
+    if (verified !== undefined) { updates.push('verified = ?'); values.push(verified); }
+    if (verification_notes !== undefined) { updates.push('verification_notes = ?'); values.push(verification_notes); }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ success: false, error: '缺少可更新字段' });
     }
-    
-    updateData.push('verified_by = ?', 'verified_at = NOW()');
-    updateValues.push(req.user.id, id);
-    
-    const sql = `UPDATE blacklist SET ${updateData.join(', ')} WHERE id = ?`;
-    
-    await dbQuery(sql, updateValues);
-    
-    res.json({ success: true, message: '黑榜记录验证成功' });
+
+    values.push(id);
+    const baseSql = `UPDATE blacklist SET ${updates.join(', ')} WHERE id = ?`;
+    try {
+      await dbQuery(baseSql, values);
+    } catch (err) {
+      const msg = String(err?.message || '').toLowerCase();
+      // 兼容老表：若不存在 verified_at 或 verified 字段，则移除相关更新后重试
+      if (msg.includes("unknown column 'verified_at'") || msg.includes('unknown column `verified_at`') || msg.includes('unknown column verified_at')) {
+        const filtered = [];
+        const filteredValues = [];
+        let valueIdx = 0;
+        for (const u of updates) {
+          const hasVerifiedAt = u.includes('verified_at');
+          if (!hasVerifiedAt) {
+            filtered.push(u);
+            filteredValues.push(values[valueIdx]);
+          }
+          valueIdx += 1;
+        }
+        filteredValues.push(id);
+        const sql2 = `UPDATE blacklist SET ${filtered.join(', ')} WHERE id = ?`;
+        await dbQuery(sql2, filteredValues);
+      } else if (msg.includes("unknown column 'verified'") || msg.includes('unknown column `verified`') || msg.includes('unknown column verified')) {
+        const filtered = [];
+        const filteredValues = [];
+        let valueIdx = 0;
+        for (const u of updates) {
+          const hasVerified = u.includes('verified =');
+          if (!hasVerified) {
+            filtered.push(u);
+            filteredValues.push(values[valueIdx]);
+          }
+          valueIdx += 1;
+        }
+        filteredValues.push(id);
+        const sql2 = `UPDATE blacklist SET ${filtered.join(', ')} WHERE id = ?`;
+        await dbQuery(sql2, filteredValues);
+      } else {
+        throw err;
+      }
+    }
+
+    res.json({ success: true, message: '黑榜记录已更新' });
   } catch (error) {
     console.error('验证黑榜记录失败:', error);
     res.status(500).json({ success: false, error: '验证黑榜记录失败' });

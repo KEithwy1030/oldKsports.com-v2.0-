@@ -4,16 +4,13 @@ import { getDb } from '../db.js';
 
 export const authenticateToken = async (req, res, next) => {
   try {
-    // 优先从 Cookie 读取
-    let token = req.cookies.access_token;
-    
-    // 如果 Cookie 没有，尝试从 Authorization header 读取
-    if (!token) {
-      const authHeader = req.headers['authorization'];
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.substring(7);
-      }
-    }
+    // 变更策略：优先使用 Authorization Header，其次回退 Cookie
+    const headerAuth = req.headers['authorization'];
+    const headerToken = headerAuth && headerAuth.startsWith('Bearer ')
+      ? headerAuth.substring(7)
+      : null;
+    const cookieToken = req.cookies.access_token || null;
+    let token = headerToken || cookieToken;
 
     console.log('认证中间件 - Token来源:', {
       fromCookie: !!req.cookies.access_token,
@@ -30,24 +27,45 @@ export const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // 验证JWT令牌
+    // 验证JWT令牌；若首选token失败且存在另一个来源，则尝试回退
     let decoded;
+    const secret = process.env.JWT_SECRET || 'oldksports_jwt_secret_key_2024';
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'oldksports_jwt_secret_key_2024');
+      decoded = jwt.verify(token, secret);
       console.log('JWT解码成功:', { userId: decoded.userId, exp: decoded.exp });
     } catch (jwtError) {
+      // 如果用的是Cookie而失败，并且Header里也有token，则尝试用Header再验证一次
+      const triedCookieThenHeader = (!headerToken && cookieToken) ? false : (token === cookieToken && !!headerToken);
+      if (triedCookieThenHeader) {
+        try {
+          decoded = jwt.verify(headerToken, secret);
+          token = headerToken; // 改用header token
+          console.log('Cookie令牌无效，已回退到Header令牌并验证成功');
+        } catch (e2) {
+          console.error('认证失败详情(回退后仍失败):', {
+            name: e2.name,
+            message: e2.message,
+            expiredAt: e2.expiredAt,
+          });
+          return res.status(401).json({
+            success: false,
+            error: '访问令牌无效',
+            details: e2.message
+          });
+        }
+      } else {
       console.error('认证失败详情:', {
         name: jwtError.name,
         message: jwtError.message,
         expiredAt: jwtError.expiredAt,
         stack: jwtError.stack
       });
-      
       return res.status(401).json({
         success: false,
         error: '访问令牌无效',
         details: jwtError.message
       });
+      }
     }
     
     // 从数据库获取用户信息

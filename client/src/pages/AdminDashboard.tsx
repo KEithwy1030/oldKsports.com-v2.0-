@@ -159,11 +159,11 @@ const AdminDashboard: React.FC = () => {
 
   if (!user?.isAdmin) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-white mb-2">访问被拒绝</h1>
-          <p className="text-gray-400">您没有权限访问管理员面板</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">访问被拒绝</h1>
+          <p className="text-gray-600 dark:text-gray-400">您没有权限访问管理员面板</p>
         </div>
       </div>
     );
@@ -171,26 +171,26 @@ const AdminDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white">加载中...</div>
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-gray-900 dark:text-white">加载中...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* 头部 */}
-      <div className="bg-gray-800 border-b border-gray-700">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-3xl font-bold text-white">管理员控制台</h1>
-              <p className="text-gray-400 mt-1">欢迎回来，{user.username}</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">管理员控制台</h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">欢迎回来，{user.username}</p>
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right">
-                <p className="text-sm text-gray-400">当前时间</p>
-                <p className="text-white font-mono">{new Date().toLocaleString()}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">当前时间</p>
+                <p className="text-gray-900 dark:text-white font-mono">{new Date().toLocaleString()}</p>
               </div>
             </div>
           </div>
@@ -200,54 +200,54 @@ const AdminDashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 统计卡片 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center">
               <div className="p-2 bg-blue-500 rounded-lg">
                 <Users className="w-6 h-6 text-white" />
               </div>
               <div className="ml-4">
-                <p className="text-sm text-gray-400">总用户数</p>
-                <p className="text-2xl font-bold text-white">{stats.totalUsers}</p>
-                <p className="text-xs text-green-400">+{stats.userGrowth}% 本月</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">总用户数</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalUsers}</p>
+                <p className="text-xs text-green-600 dark:text-green-400">+{stats.userGrowth}% 本月</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center">
               <div className="p-2 bg-green-500 rounded-lg">
                 <FileText className="w-6 h-6 text-white" />
               </div>
               <div className="ml-4">
-                <p className="text-sm text-gray-400">总帖子数</p>
-                <p className="text-2xl font-bold text-white">{stats.totalPosts}</p>
-                <p className="text-xs text-green-400">+{stats.postGrowth}% 本月</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">总帖子数</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalPosts}</p>
+                <p className="text-xs text-green-600 dark:text-green-400">+{stats.postGrowth}% 本月</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center">
               <div className="p-2 bg-purple-500 rounded-lg">
                 <MessageSquare className="w-6 h-6 text-white" />
               </div>
               <div className="ml-4">
-                <p className="text-sm text-gray-400">总回复数</p>
-                <p className="text-2xl font-bold text-white">{stats.totalReplies}</p>
-                <p className="text-xs text-blue-400">今日 +{stats.todayReplies}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">总回复数</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalReplies}</p>
+                <p className="text-xs text-blue-600 dark:text-blue-400">今日 +{stats.todayReplies}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center">
               <div className="p-2 bg-orange-500 rounded-lg">
                 <Activity className="w-6 h-6 text-white" />
               </div>
               <div className="ml-4">
-                <p className="text-sm text-gray-400">在线用户</p>
-                <p className="text-2xl font-bold text-white">{stats.onlineUsers}</p>
-                <p className="text-xs text-orange-400">实时更新</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">在线用户</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.onlineUsers}</p>
+                <p className="text-xs text-orange-600 dark:text-orange-400">实时更新</p>
               </div>
             </div>
           </div>
@@ -257,9 +257,9 @@ const AdminDashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 最近活动 */}
           <div className="lg:col-span-2">
-            <div className="bg-gray-800 rounded-lg border border-gray-700">
-              <div className="p-6 border-b border-gray-700">
-                <h2 className="text-xl font-semibold text-white flex items-center">
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
                   <Clock className="w-5 h-5 mr-2" />
                   最近活动
                 </h2>
@@ -277,8 +277,8 @@ const AdminDashboard: React.FC = () => {
                         {activity.type === 'user' && <Users className="w-4 h-4 text-white" />}
                       </div>
                       <div className="flex-1">
-                        <p className="text-white">{activity.content}</p>
-                        <p className="text-sm text-gray-400">
+                        <p className="text-gray-900 dark:text-white">{activity.content}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
                           {activity.user} • {activity.timestamp}
                         </p>
                       </div>
@@ -291,9 +291,9 @@ const AdminDashboard: React.FC = () => {
 
           {/* 快速操作 */}
           <div>
-            <div className="bg-gray-800 rounded-lg border border-gray-700">
-              <div className="p-6 border-b border-gray-700">
-                <h2 className="text-xl font-semibold text-white flex items-center">
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
                   <Settings className="w-5 h-5 mr-2" />
                   快速操作
                 </h2>
@@ -321,9 +321,9 @@ const AdminDashboard: React.FC = () => {
             </div>
 
             {/* 系统状态 */}
-            <div className="bg-gray-800 rounded-lg border border-gray-700 mt-6">
-              <div className="p-6 border-b border-gray-700">
-                <h2 className="text-xl font-semibold text-white flex items-center">
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mt-6">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
                   <Activity className="w-5 h-5 mr-2" />
                   系统状态
                 </h2>
@@ -337,7 +337,7 @@ const AdminDashboard: React.FC = () => {
                   )}
                   
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400">服务器状态</span>
+                    <span className="text-gray-600 dark:text-gray-400">服务器状态</span>
                     <span className={`flex items-center ${
                       systemStatus?.server?.status === 'normal' ? 'text-green-400' : 'text-red-400'
                     }`}>
@@ -348,7 +348,7 @@ const AdminDashboard: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400">数据库连接</span>
+                    <span className="text-gray-600 dark:text-gray-400">数据库连接</span>
                     <span className={`flex items-center ${
                       systemStatus?.database?.status === 'normal' ? 'text-green-400' : 'text-red-400'
                     }`}>
@@ -359,7 +359,7 @@ const AdminDashboard: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400">存储空间</span>
+                    <span className="text-gray-600 dark:text-gray-400">存储空间</span>
                     <span className={`${
                       (systemStatus?.storage?.usage || 0) < 80 ? 'text-green-400' : 
                       (systemStatus?.storage?.usage || 0) < 90 ? 'text-yellow-400' : 'text-red-400'

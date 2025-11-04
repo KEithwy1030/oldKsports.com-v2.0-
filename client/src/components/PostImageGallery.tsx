@@ -49,7 +49,7 @@ const PostImageGallery: React.FC<PostImageGalleryProps> = ({
     <>
       <div className={`h-full flex flex-col ${className}`} style={{ marginBottom: 12 }}>
         {/* 列表页紧凑预览 */}
-        <div className={`grid ${getGridLayout()} gap-3`} style={{ height: '116px', width: '540px', marginTop: -40, zIndex: 0 }}>
+        <div className={`grid ${getGridLayout()} gap-3`} style={{ height: '116px', width: '100%' }}>
           {displayImages.map((image, index) => (
             <div
               key={index}

@@ -207,9 +207,31 @@ export const deletePost = (postId, userId, isAdmin = false) => {
 
 export const updatePost = (postData, postId, userId) => {
     return new Promise((resolve, reject) => {
-        const q = "UPDATE forum_posts SET `title`=?,`content`=?,`category`=? WHERE `id` = ? AND `author_id` = ?";
-        const values = [ postData.title, postData.content, postData.category ];
-        getDb().query(q, [...values, postId, userId], (err, data) => {
+        // 构建动态SQL，只更新提供的字段
+        const updates = [];
+        const values = [];
+        
+        if (postData.title !== undefined) {
+            updates.push('`title`=?');
+            values.push(postData.title);
+        }
+        if (postData.content !== undefined) {
+            updates.push('`content`=?');
+            values.push(postData.content);
+        }
+        if (postData.category !== undefined) {
+            updates.push('`category`=?');
+            values.push(postData.category);
+        }
+        
+        if (updates.length === 0) {
+            return reject(new Error("No fields to update"));
+        }
+        
+        const q = `UPDATE forum_posts SET ${updates.join(', ')} WHERE \`id\` = ? AND \`author_id\` = ?`;
+        values.push(postId, userId);
+        
+        getDb().query(q, values, (err, data) => {
             if (err) return reject(err);
             if (data.affectedRows === 0) return reject(new Error("Forbidden"));
             resolve("Post has been updated.");

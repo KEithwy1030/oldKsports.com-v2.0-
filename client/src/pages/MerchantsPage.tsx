@@ -80,21 +80,21 @@ const MerchantsPage: React.FC = () => {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-gradient-radial from-slate-700 to-slate-900">
+      <div className="min-h-screen bg-gray-50 dark:bg-gradient-radial dark:from-slate-700 dark:to-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="text-center mb-12 stagger-children">
-            <h1 className="text-3xl font-bold text-white mb-4" style={{ '--stagger-delay': '1' } as React.CSSProperties}>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4" style={{ '--stagger-delay': '1' } as React.CSSProperties}>
               优秀合作伙伴展位
             </h1>
-            <p className="text-lg text-gray-300 max-w-2xl mx-auto" style={{ '--stagger-delay': '2' } as React.CSSProperties}>
+            <p className="text-lg text-gray-700 dark:text-gray-300 max-w-2xl mx-auto" style={{ '--stagger-delay': '2' } as React.CSSProperties}>
               经过严格筛选的行业优质资源，为体育媒体人提供可靠的商业服务和合作机会
             </p>
           </div>
 
           {/* Tab Navigation */}
           <div className="flex justify-center mb-8" style={{ '--stagger-delay': '4' } as React.CSSProperties}>
-            <div className="flex space-x-1 bg-white/10 backdrop-blur-sm p-1 rounded-lg border border-white/20">
+            <div className="flex space-x-1 bg-gray-200 dark:bg-white/10 backdrop-blur-sm p-1 rounded-lg border border-gray-300 dark:border-white/20">
               {tabs.map((tab) => {
                 const IconComponent = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -145,15 +145,15 @@ const MerchantsPage: React.FC = () => {
 
           {/* Admin Management Panel */}
           {user?.isAdmin && (
-            <div className="mb-8 bg-emerald-500/20 backdrop-blur-sm rounded-lg border border-emerald-400/30 p-6" style={{ '--stagger-delay': '5' } as React.CSSProperties}>
+            <div className="mb-8 bg-emerald-100 dark:bg-emerald-500/20 backdrop-blur-sm rounded-lg border border-emerald-300 dark:border-emerald-400/30 p-6" style={{ '--stagger-delay': '5' } as React.CSSProperties}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-emerald-600/20 rounded-full flex items-center justify-center border border-emerald-500/30">
-                    <Edit className="w-5 h-5 text-emerald-400" />
+                  <div className="w-10 h-10 bg-emerald-200 dark:bg-emerald-600/20 rounded-full flex items-center justify-center border border-emerald-400 dark:border-emerald-500/30">
+                    <Edit className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-white">管理员控制面板</h3>
-                    <p className="text-emerald-300 text-sm">管理优秀商家信息</p>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">管理员控制面板</h3>
+                    <p className="text-emerald-700 dark:text-emerald-300 text-sm">管理优秀商家信息</p>
                   </div>
                 </div>
                 
@@ -167,17 +167,17 @@ const MerchantsPage: React.FC = () => {
               </div>
               
               <div className="mt-4 grid md:grid-cols-3 gap-4">
-                <div className="bg-emerald-600/20 rounded-lg p-3 border border-emerald-500/30">
-                  <h4 className="font-medium text-white text-sm mb-1">添加商家</h4>
-                  <p className="text-emerald-200 text-xs">添加新的优秀合作伙伴</p>
+                <div className="bg-emerald-200 dark:bg-emerald-600/20 rounded-lg p-3 border border-emerald-400 dark:border-emerald-500/30">
+                  <h4 className="font-medium text-gray-900 dark:text-white text-sm mb-1">添加商家</h4>
+                  <p className="text-emerald-700 dark:text-emerald-200 text-xs">添加新的优秀合作伙伴</p>
                 </div>
-                <div className="bg-emerald-600/20 rounded-lg p-3 border border-emerald-500/30">
-                  <h4 className="font-medium text-white text-sm mb-1">编辑信息</h4>
-                  <p className="text-emerald-200 text-xs">修改现有商家资料</p>
+                <div className="bg-emerald-200 dark:bg-emerald-600/20 rounded-lg p-3 border border-emerald-400 dark:border-emerald-500/30">
+                  <h4 className="font-medium text-gray-900 dark:text-white text-sm mb-1">编辑信息</h4>
+                  <p className="text-emerald-700 dark:text-emerald-200 text-xs">修改现有商家资料</p>
                 </div>
-                <div className="bg-emerald-600/20 rounded-lg p-3 border border-emerald-500/30">
-                  <h4 className="font-medium text-white text-sm mb-1">分类管理</h4>
-                  <p className="text-emerald-200 text-xs">管理不同类型的商家</p>
+                <div className="bg-emerald-200 dark:bg-emerald-600/20 rounded-lg p-3 border border-emerald-400 dark:border-emerald-500/30">
+                  <h4 className="font-medium text-gray-900 dark:text-white text-sm mb-1">分类管理</h4>
+                  <p className="text-emerald-700 dark:text-emerald-200 text-xs">管理不同类型的商家</p>
                 </div>
               </div>
             </div>
@@ -187,7 +187,7 @@ const MerchantsPage: React.FC = () => {
           {loading && (
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400 mb-4"></div>
-              <p className="text-gray-300">正在加载商家数据...</p>
+              <p className="text-gray-700 dark:text-gray-300">正在加载商家数据...</p>
             </div>
           )}
 
@@ -198,14 +198,14 @@ const MerchantsPage: React.FC = () => {
                 displayMerchants.map((merchant, index) => (
               <div
                 key={merchant.id}
-                className={`bg-white/10 backdrop-blur-sm rounded-lg border overflow-hidden transition-all duration-300 flex flex-col ${
+                className={`bg-white dark:bg-white/10 backdrop-blur-sm rounded-lg border overflow-hidden transition-all duration-300 flex flex-col ${
                   merchant.category === 'gold' 
-                    ? 'border-orange-400/30 hover:border-orange-400' 
+                    ? 'border-orange-300 dark:border-orange-400/30 hover:border-orange-400' 
                     : merchant.category === 'advertiser' 
-                    ? 'border-blue-400/30 hover:border-blue-400' 
+                    ? 'border-blue-300 dark:border-blue-400/30 hover:border-blue-400' 
                     : merchant.category === 'streamer' 
-                    ? 'border-purple-400/30 hover:border-purple-400' 
-                    : 'border-white/20 hover:border-emerald-400'
+                    ? 'border-purple-300 dark:border-purple-400/30 hover:border-purple-400' 
+                    : 'border-gray-200 dark:border-white/20 hover:border-emerald-400'
                 }`}
                 style={{ '--stagger-delay': `${7 + index}` } as React.CSSProperties}
               >
@@ -214,24 +214,24 @@ const MerchantsPage: React.FC = () => {
                     {/* 使用系统头像根据商家分类显示不同角色 */}
                     {getSystemAvatar(merchant.category, "w-16 h-16")}
                     <div className="flex-1">
-                      <h3 className="text-xl font-semibold text-white mb-2">
+                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                         {merchant.name}
                       </h3>
-                      <p className="text-gray-300 mb-4">
+                      <p className="text-gray-700 dark:text-gray-300 mb-4">
                         {merchant.description}
                       </p>
                     </div>
                   </div>
                   
                   <div className="space-y-3">
-                    <div className="flex items-center text-sm text-gray-400">
+                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                       <Calendar className="w-4 h-4 mr-2" />
                       <span>加入时间：{new Date(merchant.created_at).toLocaleDateString('zh-CN')}</span>
                     </div>
                     
-                    <div className="text-sm text-gray-300">
-                      <span className="font-medium text-white">联系方式：</span>
-                      { (merchant as any).contact_info || (merchant as any).contactInfo || '—' }
+                    <div className="text-sm text-gray-700 dark:text-gray-300">
+                      <span className="font-medium text-gray-900 dark:text-white">联系方式：</span>
+                      <span className="text-emerald-600 dark:text-emerald-400">{(merchant as any).contact_info || (merchant as any).contactInfo || '—'}</span>
                     </div>
                     
                     {merchant.website && (
@@ -296,13 +296,13 @@ const MerchantsPage: React.FC = () => {
                 ))
               ) : (
                 <div className="col-span-full text-center py-12">
-                  <div className="w-16 h-16 bg-gray-600/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-500/30">
-                    <Globe className="w-8 h-8 text-gray-400" />
+                  <div className="w-16 h-16 bg-gray-200 dark:bg-gray-600/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-400 dark:border-gray-500/30">
+                    <Globe className="w-8 h-8 text-gray-600 dark:text-gray-400" />
                   </div>
-                  <h3 className="text-lg font-medium text-white mb-2">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                     暂无{activeTab === 'gold' ? '金牌商家' : activeTab === 'clients' ? '诚信甲方' : activeTab === 'streamers' ? '靠谱主播' : '商家信息'}
                   </h3>
-                  <p className="text-gray-300">我们正在严格筛选优质合作伙伴</p>
+                  <p className="text-gray-700 dark:text-gray-300">我们正在严格筛选优质合作伙伴</p>
                   {user?.isAdmin && (
                     <Link
                       to="/admin/merchants"

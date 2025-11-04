@@ -297,10 +297,8 @@ export async function showUserCard(username: string, anchorRect: DOMRect, forceR
     const el = ensureContainer();
     console.log('🔥 容器元素:', el);
     
-    // 将函数和定时器暴露到全局，供HTML中的事件处理使用
+    // 将函数暴露到全局，供HTML中的事件处理使用
     (window as any).forceHideUserCard = forceHideUserCard;
-    (window as any).userCardHideTimer = hideTimer;
-    (window as any).userCardInitialTimer = initialDisplayTimer;
     
     // position: prefer above; fallback below
     const margin = 8;
@@ -319,9 +317,14 @@ export async function showUserCard(username: string, anchorRect: DOMRect, forceR
     el.style.pointerEvents = 'auto';
     
     console.log('🔥 用户卡片已显示');
-    // 改为基于意图的隐藏（离开时触发 softHideUserCard）
-    ;(window as any).userCardHideTimer = hideTimer;
-    ;(window as any).userCardInitialTimer = intentTimer;
+    // 设置自动隐藏定时器（2秒后自动隐藏）
+    intentTimer = setTimeout(() => {
+      console.log('🔥 自动隐藏定时器触发');
+      softHideUserCard(0);
+    }, 2000);
+    // 将定时器暴露到全局，供HTML中的事件处理使用
+    (window as any).userCardHideTimer = hideTimer;
+    (window as any).userCardInitialTimer = intentTimer;
   } catch (error) {
     console.error('🔥 showUserCard 错误:', error);
   }
@@ -378,10 +381,13 @@ export function forceHideUserCard() {
 
 // 设置全局聊天处理函数
 export function setChatHandler(handler: (user: { id: number; username: string; avatar?: string }) => void) {
+  console.log('🔥 setChatHandler 被调用:', handler);
   (window as any).openChatWith = (target: { id: number; username: string; avatar?: string }) => {
+    console.log('🔥 window.openChatWith 被调用:', target);
     const me = getCurrentUserId();
+    console.log('🔥 当前用户ID:', me);
     if (typeof me === 'number' && typeof target?.id === 'number' && me === target.id) {
-      // 阻止与自己聊天
+      console.log('🔥 阻止与自己聊天');
       return;
     }
     handler(target);
@@ -399,16 +405,26 @@ function findUsernameAnchor(target: EventTarget | null): HTMLElement | null {
 }
 
 export function initUserHoverAutobind() {
-  if (autoBindInited || typeof window === 'undefined' || typeof document === 'undefined') return;
+  if (autoBindInited || typeof window === 'undefined' || typeof document === 'undefined') {
+    console.log('🔥 initUserHoverAutobind: 跳过初始化（已初始化或环境不支持）');
+    return;
+  }
   autoBindInited = true;
+  console.log('🔥 initUserHoverAutobind: 开始绑定全局事件监听');
 
   // 改为点击触发
   document.addEventListener('click', (e) => {
+    console.log('🔥 全局点击事件触发:', e.target);
     const el = findUsernameAnchor(e.target);
-    if (!el) return;
+    if (!el) {
+      console.log('🔥 未找到包含data-username的元素');
+      return;
+    }
     const username = el.getAttribute('data-username') || el.getAttribute('data-user');
+    console.log('🔥 找到用户头像:', username);
     if (!username) return;
     const rect = el.getBoundingClientRect();
+    console.log('🔥 调用showUserCard:', username, rect);
     showUserCard(username, rect);
   }, true);
 
@@ -418,9 +434,12 @@ export function initUserHoverAutobind() {
     const inCard = target.closest('#user-hover-card');
     const inAnchor = target.closest('[data-username], [data-user]');
     if (!inCard && !inAnchor) {
+      console.log('🔥 点击空白区域，隐藏卡片');
       softHideUserCard(HIDE_DELAY_MS);
     }
   }, true);
+  
+  console.log('🔥 全局事件监听绑定完成');
 }
 
 

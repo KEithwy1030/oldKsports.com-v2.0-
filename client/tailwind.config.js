@@ -4,9 +4,20 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
+        // Semantic theme colors using CSS variables
+        // 使用语义化命名，自动适配日间/夜间模式
+        surface: 'var(--color-bg-primary)',
+        'surface-variant': 'var(--color-bg-secondary)',
+        'surface-tertiary': 'var(--color-bg-tertiary)',
+        'on-surface': 'var(--color-text-primary)',
+        'on-surface-variant': 'var(--color-text-secondary)',
+        'on-surface-tertiary': 'var(--color-text-tertiary)',
+        'border-surface': 'var(--color-border)',
+        'border-surface-light': 'var(--color-border-light)',
         primary: {
           50: '#eff6ff',
           100: '#dbeafe',
@@ -22,6 +33,7 @@ export default {
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'gradient-surface': 'radial-gradient(circle at center, var(--color-gradient-from) 0%, var(--color-gradient-to) 100%)',
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',
