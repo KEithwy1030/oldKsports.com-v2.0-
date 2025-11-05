@@ -1,9 +1,5 @@
 // server/controllers/post.controller.js
-import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
 import * as PostService from '../services/post.service.js';
-
-dotenv.config();
 
 export const getPosts = async (req, res) => {
     try {
