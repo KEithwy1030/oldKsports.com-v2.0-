@@ -3,6 +3,45 @@ import jwt from 'jsonwebtoken';
 import { updateUserPoints as updateUserPointsService } from '../services/user.service.js';
 import { getDb } from '../db.js';
 
+/**
+ * 规范化 roles 字段，统一处理各种数据格式
+ * @param {any} roles - 可能是数组、JSON字符串、null 或 undefined
+ * @returns {string[]} 始终返回数组格式
+ */
+function normalizeRoles(roles) {
+    // 如果为空，返回空数组
+    if (!roles) return [];
+    
+    // 如果已经是数组，直接返回
+    if (Array.isArray(roles)) {
+        return roles.filter(role => role && typeof role === 'string');
+    }
+    
+    // 如果是字符串，尝试解析
+    if (typeof roles === 'string') {
+        try {
+            // 尝试解析 JSON 字符串
+            const parsed = JSON.parse(roles);
+            // 如果解析后是数组，返回数组；否则包装成数组
+            if (Array.isArray(parsed)) {
+                return parsed.filter(role => role && typeof role === 'string');
+            }
+            return [parsed].filter(role => role && typeof role === 'string');
+        } catch (e) {
+            // JSON 解析失败，尝试逗号分隔的字符串
+            if (roles.includes(',')) {
+                return roles.split(',').map(r => r.trim()).filter(r => r);
+            }
+            // 单个字符串值
+            const trimmed = roles.trim();
+            return trimmed ? [trimmed] : [];
+        }
+    }
+    
+    // 其他类型，返回空数组
+    return [];
+}
+
 const getUserInfoFromToken = (req) => {
     let token = req.cookies.access_token;
     if (!token) {
@@ -259,37 +298,8 @@ export const getUserInfo = async (req, res) => {
         const { getUserLevel } = await import('../utils/userLevel.js');
         const level = getUserLevel(user.points);
         
-        // 解析roles JSON字段
-        console.log('用户数据调试 - 用户名:', user.username);
-        console.log('用户数据调试 - roles字段:', user.roles);
-        console.log('用户数据调试 - roles字段类型:', typeof user.roles);
-        console.log('用户数据调试 - 完整用户数据:', user);
-        
-        let roles = null;
-        if (user.roles) {
-            // MySQL JSON字段已经被自动解析为JavaScript数组，直接使用
-            if (Array.isArray(user.roles)) {
-                roles = user.roles;
-                console.log('MySQL JSON数组解析成功:', roles);
-            } else if (typeof user.roles === 'string') {
-                try {
-                    // 尝试解析JSON字符串
-                    roles = JSON.parse(user.roles);
-                    console.log('JSON字符串解析成功:', roles);
-                } catch (e) {
-                    // 如果JSON解析失败，尝试解析逗号分隔的字符串
-                    if (user.roles.includes(',')) {
-                        roles = user.roles.split(',').map(role => role.trim()).filter(role => role);
-                        console.log('逗号分隔解析成功:', roles);
-                    } else {
-                        roles = [user.roles.trim()];
-                        console.log('单字符串解析成功:', roles);
-                    }
-                }
-            }
-        } else {
-            console.log('roles字段为空或null');
-        }
+        // 使用公共函数规范化 roles 字段
+        const roles = normalizeRoles(user.roles);
 
         res.json({
             success: true,
@@ -301,7 +311,7 @@ export const getUserInfo = async (req, res) => {
                 avatar: user.avatar,
                 hasUploadedAvatar: user.has_uploaded_avatar,
                 role: user.role || '用户',
-                roles: roles,
+                roles: roles, // 统一返回数组格式
                 level: level,
                 joinDate: user.created_at
             }
@@ -339,6 +349,17 @@ export const getTodayOnlineUsers = async (req, res) => {
             });
         });
         
+        // 规范化每个用户的 roles 字段（与 getUserInfo 保持一致）
+        const normalizedUsers = (rows || []).map(user => ({
+            id: user.id,
+            username: user.username,
+            avatar: user.avatar || null,
+            points: user.points || 0,
+            role: user.role || '用户',
+            roles: normalizeRoles(user.roles), // 使用公共函数统一处理
+            last_login: user.last_login
+        }));
+        
         // 计算总数
         const countQuery = `
             SELECT COUNT(*) AS total 
@@ -359,15 +380,22 @@ export const getTodayOnlineUsers = async (req, res) => {
         res.json({
             success: true,
             data: {
-                users: rows || [],
+                users: normalizedUsers, // 返回规范化后的数据
                 totalOnline: totalOnline
             }
         });
     } catch (error) {
         console.error('Error getting today online users:', error);
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            sqlState: error.sqlState,
+            sql: error.sql
+        });
         res.status(500).json({ 
             success: false, 
             error: 'Failed to get online users',
+            details: error.message,
             data: {
                 users: [],
                 totalOnline: 0
