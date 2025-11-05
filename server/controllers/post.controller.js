@@ -5,26 +5,6 @@ import * as PostService from '../services/post.service.js';
 
 dotenv.config();
 
-const getUserInfoFromToken = (req) => {
-    // 优先从 Cookie 读取
-    let token = req.cookies.access_token;
-    
-    // 如果 Cookie 没有，尝试从 Authorization header 读取
-    if (!token) {
-        const authHeader = req.headers.authorization;
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-            token = authHeader.substring(7);
-        }
-    }
-    
-    if (!token) return null;
-    try {
-        return jwt.verify(token, process.env.JWT_SECRET || "oldksports_jwt_secret_key_2024");
-    } catch (err) {
-        return null;
-    }
-};
-
 export const getPosts = async (req, res) => {
     try {
         const posts = await PostService.findPosts(req.query.cat);
@@ -121,15 +101,37 @@ export const deletePost = async (req, res) => {
 };
 
 export const updatePost = async (req, res) => {
-    const userInfo = getUserInfoFromToken(req);
-    if (!userInfo) return res.status(401).json("Not authenticated!");
+    // 使用认证中间件设置的req.user，与其他接口保持一致
+    if (!req.user) {
+        console.log('❌ 更新帖子失败: 用户未认证');
+        return res.status(401).json({ success: false, error: "用户未认证" });
+    }
     
     try {
-        const message = await PostService.updatePost(req.body, req.params.id, userInfo.id);
-        return res.status(200).json(message);
+        console.log('✏️ 更新帖子请求详情:', {
+            postId: req.params.id,
+            userId: req.user.id,
+            username: req.user.username,
+            isAdmin: req.user.isAdmin,
+            updateData: req.body
+        });
+        
+        // 管理员可以更新任何帖子，普通用户只能更新自己的帖子
+        const message = await PostService.updatePost(
+            req.body, 
+            req.params.id, 
+            req.user.id,
+            req.user.isAdmin || req.user.is_admin // 支持管理员权限
+        );
+        console.log('✅ 更新帖子成功:', message);
+        return res.status(200).json({ success: true, message });
     } catch (err) {
-        if (err.message === "Forbidden") return res.status(403).json("You can only update your post!");
-        return res.status(500).json(err);
+        console.error('❌ 更新帖子失败:', err.message);
+        if (err.message === "Forbidden") {
+            console.log('🚫 权限不足: 只能更新自己的帖子');
+            return res.status(403).json({ success: false, error: "只能编辑自己的帖子" });
+        }
+        return res.status(500).json({ success: false, error: err.message || "更新失败" });
     }
 };
 

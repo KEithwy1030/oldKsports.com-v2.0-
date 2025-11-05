@@ -205,7 +205,7 @@ export const deletePost = (postId, userId, isAdmin = false) => {
     });
 };
 
-export const updatePost = (postData, postId, userId) => {
+export const updatePost = (postData, postId, userId, isAdmin = false) => {
     return new Promise((resolve, reject) => {
         // 构建动态SQL，只更新提供的字段
         const updates = [];
@@ -220,20 +220,43 @@ export const updatePost = (postData, postId, userId) => {
             values.push(postData.content);
         }
         if (postData.category !== undefined) {
+            // 规范化category值，确保数据库存储正确
+            const normalizedCategory = normalizeCategory(postData.category) || 'general';
             updates.push('`category`=?');
-            values.push(postData.category);
+            values.push(normalizedCategory);
         }
         
         if (updates.length === 0) {
             return reject(new Error("No fields to update"));
         }
         
-        const q = `UPDATE forum_posts SET ${updates.join(', ')} WHERE \`id\` = ? AND \`author_id\` = ?`;
-        values.push(postId, userId);
+        // 管理员可以更新任何帖子，普通用户只能更新自己的帖子
+        const q = isAdmin 
+            ? `UPDATE forum_posts SET ${updates.join(', ')} WHERE \`id\` = ?`
+            : `UPDATE forum_posts SET ${updates.join(', ')} WHERE \`id\` = ? AND \`author_id\` = ?`;
+        const params = isAdmin ? [...values, postId] : [...values, postId, userId];
         
-        getDb().query(q, values, (err, data) => {
-            if (err) return reject(err);
-            if (data.affectedRows === 0) return reject(new Error("Forbidden"));
+        console.log('📝 更新帖子SQL:', q);
+        console.log('📝 SQL参数:', params);
+        console.log('📝 管理员权限:', isAdmin ? '是' : '否');
+        
+        getDb().query(q, params, (err, data) => {
+            if (err) {
+                console.error('❌ 更新SQL错误:', err);
+                return reject(err);
+            }
+            
+            console.log('📊 更新结果:', {
+                affectedRows: data.affectedRows,
+                changedRows: data.changedRows
+            });
+            
+            if (data.affectedRows === 0) {
+                console.log('🚫 没有行被更新，可能是权限不足或帖子不存在');
+                return reject(new Error("Forbidden"));
+            }
+            
+            console.log('✅ 更新帖子成功');
             resolve("Post has been updated.");
         });
     });
