@@ -249,10 +249,12 @@ const AdminPage: React.FC = () => {
   // 机器人账号编辑函数
   const handleEditBot = (bot: any) => {
     setEditingBot(bot.id);
+    // 确保 roles 是数组类型
+    const safeRoles = Array.isArray(bot.roles) ? bot.roles : [];
     setEditForm({
       username: bot.username,
       points: bot.points,
-      roles: [...bot.roles]
+      roles: [...safeRoles]
     });
   };
 
@@ -292,12 +294,16 @@ const AdminPage: React.FC = () => {
   };
 
   const handleRoleToggle = (roleId: string) => {
-    setEditForm(prev => ({
-      ...prev,
-      roles: prev.roles.includes(roleId)
-        ? prev.roles.filter(r => r !== roleId)
-        : [...prev.roles, roleId]
-    }));
+    setEditForm(prev => {
+      // 确保 roles 始终是数组类型
+      const safeRoles = Array.isArray(prev.roles) ? prev.roles : [];
+      return {
+        ...prev,
+        roles: safeRoles.includes(roleId)
+          ? safeRoles.filter(r => r !== roleId)
+          : [...safeRoles, roleId]
+      };
+    });
   };
 
   const tabs = [
@@ -678,31 +684,39 @@ const AdminPage: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             {editingBot === account.id ? (
                               <div className="space-y-2">
-                                {INDUSTRY_ROLES.map(role => (
-                                  <label key={role.id} className="flex items-center space-x-2 text-sm">
-                                    <input
-                                      type="checkbox"
-                                      checked={editForm.roles.includes(role.id)}
-                                      onChange={() => handleRoleToggle(role.id)}
-                                      className="rounded border-white/30 bg-white/10 text-emerald-500 focus:ring-emerald-500"
-                                    />
-                                    <span className="text-gray-300">{role.label}</span>
-                                  </label>
-                                ))}
+                                {INDUSTRY_ROLES.map(role => {
+                                  // 确保 editForm.roles 是数组类型
+                                  const safeRoles = Array.isArray(editForm.roles) ? editForm.roles : [];
+                                  return (
+                                    <label key={role.id} className="flex items-center space-x-2 text-sm">
+                                      <input
+                                        type="checkbox"
+                                        checked={safeRoles.includes(role.id)}
+                                        onChange={() => handleRoleToggle(role.id)}
+                                        className="rounded border-white/30 bg-white/10 text-emerald-500 focus:ring-emerald-500"
+                                      />
+                                      <span className="text-gray-300">{role.label}</span>
+                                    </label>
+                                  );
+                                })}
                               </div>
                             ) : (
                               <div className="flex flex-wrap gap-1">
-                                {account.roles.map((roleId: string) => {
-                                  const role = INDUSTRY_ROLES.find(r => r.id === roleId);
-                                  return role ? (
-                                    <span
-                                      key={roleId}
-                                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-400/30"
-                                    >
-                                      {role.label}
-                                    </span>
-                                  ) : null;
-                                })}
+                                {Array.isArray(account.roles) && account.roles.length > 0 ? (
+                                  account.roles.map((roleId: string) => {
+                                    const role = INDUSTRY_ROLES.find(r => r.id === roleId);
+                                    return role ? (
+                                      <span
+                                        key={roleId}
+                                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-400/30"
+                                      >
+                                        {role.label}
+                                      </span>
+                                    ) : null;
+                                  })
+                                ) : (
+                                  <span className="text-xs text-gray-500">未设置</span>
+                                )}
                               </div>
                             )}
                           </td>

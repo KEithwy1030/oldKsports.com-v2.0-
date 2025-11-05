@@ -115,10 +115,27 @@ const UserProfile: React.FC = () => {
     }
   }, [isSogouBrowser]);
 
-  // 初始化selectedRoles
+  // 初始化selectedRoles - 确保始终是数组类型
   React.useEffect(() => {
     if (user?.roles) {
-      setSelectedRoles(user.roles);
+      // 确保 roles 是数组类型，如果不是则转换为数组或设为空数组
+      if (Array.isArray(user.roles)) {
+        setSelectedRoles(user.roles);
+      } else if (typeof user.roles === 'string') {
+        // 如果是字符串，尝试解析为JSON
+        try {
+          const parsed = JSON.parse(user.roles);
+          setSelectedRoles(Array.isArray(parsed) ? parsed : []);
+        } catch {
+          setSelectedRoles([]);
+        }
+      } else {
+        // 其他类型（null, undefined, 数字, 对象等）都设为空数组
+        setSelectedRoles([]);
+      }
+    } else {
+      // 如果 user.roles 不存在，设为空数组
+      setSelectedRoles([]);
     }
   }, [user?.roles]);
   
@@ -464,7 +481,10 @@ const UserProfile: React.FC = () => {
   const handleSaveRoles = async () => {
     if (!user) return;
     
-    console.log('保存身份信息:', { selectedRoles, user: user.username });
+    // 确保 selectedRoles 是数组类型
+    const safeSelectedRoles = Array.isArray(selectedRoles) ? selectedRoles : [];
+    
+    console.log('保存身份信息:', { selectedRoles: safeSelectedRoles, user: user.username });
     
     setIsSavingRoles(true);
     try {
@@ -474,7 +494,7 @@ const UserProfile: React.FC = () => {
         headers: getAuthHeaders(),
         credentials: 'include', // 确保包含cookies
         body: JSON.stringify({
-          roles: selectedRoles
+          roles: safeSelectedRoles
         })
       });
 
@@ -488,7 +508,7 @@ const UserProfile: React.FC = () => {
         console.log('更新成功:', result ?? { status: response.status });
         
         // 更新本地用户数据
-        const updatedUser = { ...user, roles: selectedRoles };
+        const updatedUser = { ...user, roles: safeSelectedRoles };
         await updateUser(updatedUser);
         
         // 清除用户卡片缓存，确保新身份信息能正确显示
@@ -778,23 +798,27 @@ const UserProfile: React.FC = () => {
                 {showRoleEditor ? (
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-2">
-                      {INDUSTRY_ROLES.map(role => (
-                        <label key={role.id} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedRoles.includes(role.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedRoles([...selectedRoles, role.id]);
-                              } else {
-                                setSelectedRoles(selectedRoles.filter(id => id !== role.id));
-                              }
-                            }}
-                            className="w-4 h-4 text-emerald-600 bg-gray-700 border-gray-600 rounded focus:ring-emerald-500 focus:ring-2"
-                          />
-                          <span className="text-sm text-on-surface-variant">{role.label}</span>
-                        </label>
-                      ))}
+                      {INDUSTRY_ROLES.map(role => {
+                        // 确保 selectedRoles 始终是数组
+                        const safeSelectedRoles = Array.isArray(selectedRoles) ? selectedRoles : [];
+                        return (
+                          <label key={role.id} className="flex items-center space-x-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={safeSelectedRoles.includes(role.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedRoles([...safeSelectedRoles, role.id]);
+                                } else {
+                                  setSelectedRoles(safeSelectedRoles.filter(id => id !== role.id));
+                                }
+                              }}
+                              className="w-4 h-4 text-emerald-600 bg-gray-700 border-gray-600 rounded focus:ring-emerald-500 focus:ring-2"
+                            />
+                            <span className="text-sm text-on-surface-variant">{role.label}</span>
+                          </label>
+                        );
+                      })}
                     </div>
                     <div className="flex space-x-2">
                       <button
@@ -807,7 +831,9 @@ const UserProfile: React.FC = () => {
                       <button
                         onClick={() => {
                           setShowRoleEditor(false);
-                          setSelectedRoles(user.roles || []);
+                          // 确保取消时恢复的 roles 是数组类型
+                          const safeRoles = Array.isArray(user?.roles) ? user.roles : [];
+                          setSelectedRoles(safeRoles);
                         }}
                         className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded transition-colors"
                       >

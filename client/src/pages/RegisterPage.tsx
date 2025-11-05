@@ -41,12 +41,16 @@ const RegisterPage: React.FC = () => {
   };
 
   const handleRoleChange = (roleId: string, checked: boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      roles: checked 
-        ? [...prev.roles, roleId]
-        : prev.roles.filter(id => id !== roleId)
-    }));
+    setFormData(prev => {
+      // 确保 roles 始终是数组类型
+      const safeRoles = Array.isArray(prev.roles) ? prev.roles : [];
+      return {
+        ...prev,
+        roles: checked 
+          ? [...safeRoles, roleId]
+          : safeRoles.filter(id => id !== roleId)
+      };
+    });
   };
 
   const calculatePasswordStrength = (password: string) => {
@@ -299,17 +303,21 @@ const RegisterPage: React.FC = () => {
                 行业身份 (可选)
               </label>
               <div className="grid grid-cols-2 gap-3">
-                {INDUSTRY_ROLES.map(role => (
-                  <label key={role.id} className="flex items-center space-x-2 cursor-pointer p-2 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={formData.roles.includes(role.id)}
-                      onChange={(e) => handleRoleChange(role.id, e.target.checked)}
-                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                    />
-                    <span className="text-sm text-gray-700">{role.label}</span>
-                  </label>
-                ))}
+                {INDUSTRY_ROLES.map(role => {
+                  // 确保 formData.roles 是数组类型
+                  const safeRoles = Array.isArray(formData.roles) ? formData.roles : [];
+                  return (
+                    <label key={role.id} className="flex items-center space-x-2 cursor-pointer p-2 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={safeRoles.includes(role.id)}
+                        onChange={(e) => handleRoleChange(role.id, e.target.checked)}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                      />
+                      <span className="text-sm text-gray-700">{role.label}</span>
+                    </label>
+                  );
+                })}
               </div>
               <p className="text-xs text-gray-500 mt-2">选择您的行业身份，帮助其他用户更好地了解您</p>
             </div>
