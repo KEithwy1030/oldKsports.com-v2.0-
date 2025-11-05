@@ -21,11 +21,14 @@ export const addUserLevel = (user) => {
     return user;
   }
   
+  // 优先使用 join_date（真实注册时间），如果没有则使用 created_at 或已有的 joinDate
+  const joinDate = user.join_date || user.created_at || user.joinDate;
+  
   return {
     ...user,
     level: getUserLevel(user.points),
     // 确保字段映射正确
     isAdmin: user.is_admin || user.isAdmin || false,
-    joinDate: user.created_at || user.joinDate
+    joinDate: joinDate
   };
 };

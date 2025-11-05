@@ -208,7 +208,7 @@ export const updateUserProfile = async (req, res) => {
         console.log('🔍 查询更新后的用户信息...');
         const updatedUser = await new Promise((resolve, reject) => {
             getDb().query(
-                'SELECT id, username, email, points, avatar, has_uploaded_avatar, roles, created_at FROM users WHERE id = ?',
+                'SELECT id, username, email, points, avatar, has_uploaded_avatar, roles, created_at, join_date FROM users WHERE id = ?',
                 [userId],
                 (err, results) => {
                     if (err) {
@@ -245,6 +245,9 @@ export const updateUserProfile = async (req, res) => {
             parsedRoles = [];
         }
         
+        // 优先使用 join_date（真实注册时间），如果没有则使用 created_at
+        const joinDate = updatedUser.join_date || updatedUser.created_at;
+
         res.json({
             success: true,
             message: 'Profile updated successfully',
@@ -256,7 +259,7 @@ export const updateUserProfile = async (req, res) => {
                 avatar: updatedUser.avatar,
                 hasUploadedAvatar: updatedUser.has_uploaded_avatar,
                 roles: parsedRoles,
-                joinDate: updatedUser.created_at
+                joinDate: joinDate
             }
         });
     } catch (error) {
@@ -281,7 +284,7 @@ export const getUserInfo = async (req, res) => {
         const { username } = req.params;
         const rows = await new Promise((resolve, reject) => {
             getDb().query(
-                'SELECT id, username, email, points, avatar, has_uploaded_avatar, role, roles, created_at FROM users WHERE username = ?',
+                'SELECT id, username, email, points, avatar, has_uploaded_avatar, role, roles, created_at, join_date FROM users WHERE username = ?',
                 [username],
                 (err, results) => {
                     if (err) reject(err);
@@ -301,6 +304,9 @@ export const getUserInfo = async (req, res) => {
         // 使用公共函数规范化 roles 字段
         const roles = normalizeRoles(user.roles);
 
+        // 优先使用 join_date（真实注册时间），如果没有则使用 created_at
+        const joinDate = user.join_date || user.created_at;
+
         res.json({
             success: true,
             user: {
@@ -313,7 +319,7 @@ export const getUserInfo = async (req, res) => {
                 role: user.role || '用户',
                 roles: roles, // 统一返回数组格式
                 level: level,
-                joinDate: user.created_at
+                joinDate: joinDate
             }
         });
     } catch (error) {

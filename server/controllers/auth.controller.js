@@ -103,6 +103,9 @@ export const register = async (req, res) => {
         );
         
         // 处理用户数据，确保所有字段正确
+        // 优先使用 join_date（真实注册时间），如果没有则使用 created_at
+        const joinDate = newUsers[0].join_date || newUsers[0].created_at;
+        
         const userData = {
             id: newUsers[0].id,
             username: newUsers[0].username,
@@ -112,7 +115,7 @@ export const register = async (req, res) => {
             hasUploadedAvatar: newUsers[0].has_uploaded_avatar || false,
             isAdmin: newUsers[0].is_admin || false,
             roles: roles || [],
-            joinDate: newUsers[0].created_at
+            joinDate: joinDate
         };
         
         console.log('🔔 注册成功，返回用户数据:', userData);
