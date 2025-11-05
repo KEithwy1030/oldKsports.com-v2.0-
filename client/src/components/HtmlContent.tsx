@@ -17,6 +17,11 @@ const HtmlContent: React.FC<HtmlContentProps> = ({ content, className, hideImage
   // 先修复历史图片URL，再修复图片URL，确保图片能正确显示
   let processedContent = needsFix ? fixHistoricalImageUrls(content) : content;
   
+  // 将换行符 \n 转换为 <br> 标签，确保用户输入的多行文本正确显示
+  if (processedContent && typeof processedContent === 'string') {
+    processedContent = processedContent.replace(/\n/g, '<br>');
+  }
+  
   // 如果需要隐藏图片，移除所有img标签和图片容器
   if (hideImages) {
     // 移除所有的<img>标签
