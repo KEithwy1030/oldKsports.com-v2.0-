@@ -29,7 +29,8 @@
       "env": {
         "NODE_ENV": "production",
         "PORT": "8080",
-        "CORS_ORIGIN": "${FRONTEND_SERVICE_URL}",
+        "CORS_ORIGIN": "${FRONTEND_SERVICE_URL},https://oldksports.com,https://www.oldksports.com",
+        "CUSTOM_DOMAIN": "oldksports.com",
         "MYSQL_HOST": "${MYSQL_HOST}",
         "MYSQL_PORT": "${MYSQL_PORT}",
         "MYSQL_USERNAME": "${MYSQL_USERNAME}",

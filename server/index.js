@@ -53,8 +53,10 @@ if (process.env.FRONTEND_SERVICE_URL) {
 }
 
 // 添加自定义 CORS 源（如果设置了）
+// 支持逗号分隔的多个域名
 if (process.env.CORS_ORIGIN) {
-  corsOrigins.push(process.env.CORS_ORIGIN);
+  const origins = process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()).filter(origin => origin);
+  corsOrigins.push(...origins);
 }
 
 // 如果设置了自定义域名，也添加到允许列表

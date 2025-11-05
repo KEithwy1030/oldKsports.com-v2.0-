@@ -72,7 +72,11 @@ jspm_packages/
 
 # Gatsby files
 .cache/
-public
+# Allow client/public (needed for favicon, vite.svg, etc.)
+# But ignore uploads directories
+!client/public/
+public/
+!client/public/
 
 # Storybook build outputs
 .out
