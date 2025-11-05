@@ -18,6 +18,7 @@ const HtmlContent: React.FC<HtmlContentProps> = ({ content, className, hideImage
   let processedContent = needsFix ? fixHistoricalImageUrls(content) : content;
   
   // 将换行符 \n 转换为 <br> 标签，确保用户输入的多行文本正确显示
+  // 注意：数据库中已统一为真正的换行符，无需处理字面的 \n 字符串
   if (processedContent && typeof processedContent === 'string') {
     processedContent = processedContent.replace(/\n/g, '<br>');
   }
