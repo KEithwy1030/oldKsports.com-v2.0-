@@ -395,9 +395,19 @@ export const forumAPI = {
       params.append('cat', category);
     }
 
-    // 服务端直接返回数组，这里包装成 { posts: [...] }
-    const posts = await apiRequest<any[]>(`/posts?${params.toString()}`);
-    return { posts };
+    // 后端现在返回 { posts: [...], total: number }，增强容错处理
+    const response = await apiRequest<any>(`/posts?${params.toString()}`);
+    
+    // 容错：如果后端返回数组（向后兼容），包装成对象
+    if (Array.isArray(response)) {
+      return { posts: response, total: response.length };
+    }
+    
+    // 如果已经是对象格式，直接返回（支持多种可能的格式）
+    return {
+      posts: response?.posts || response?.data?.posts || [],
+      total: response?.total || response?.data?.total || 0
+    };
   },
   
   getPostById: async (postId: string) => {

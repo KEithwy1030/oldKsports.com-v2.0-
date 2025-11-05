@@ -28,10 +28,18 @@ const getUserInfoFromToken = (req) => {
 export const getPosts = async (req, res) => {
     try {
         const posts = await PostService.findPosts(req.query.cat);
-        return res.status(200).json(posts);
+        // 统一返回格式：{ posts: [...], total: number }
+        return res.status(200).json({ 
+            posts: Array.isArray(posts) ? posts : [],
+            total: Array.isArray(posts) ? posts.length : 0
+        });
     } catch (err) {
         console.error('Error in getPosts:', err);
-        return res.status(500).json(err);
+        return res.status(500).json({ 
+            error: err.message || 'Failed to get posts',
+            posts: [],
+            total: 0
+        });
     }
 };
 

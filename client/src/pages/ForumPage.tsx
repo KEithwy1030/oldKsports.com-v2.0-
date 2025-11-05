@@ -337,9 +337,16 @@ const ForumPage: React.FC = () => {
       console.log('[DEBUG] ForumPage loadPosts 响应数据:', data);
       console.log('[DEBUG] ForumPage loadPosts 数据类型:', typeof data, Array.isArray(data));
       
-      if (data && data.posts) {
-        setPosts(data.posts);
-        setTotalPages(data.totalPages);
+      // 增强容错：支持多种返回格式
+      const postsArray = Array.isArray(data) 
+        ? data 
+        : (data?.posts || data?.data?.posts || []);
+      
+      if (Array.isArray(postsArray)) {
+        setPosts(postsArray);
+        // 计算总页数（基于实际返回的帖子数量）
+        const total = data?.total || postsArray.length;
+        setTotalPages(Math.max(1, Math.ceil(total / postsPerPage)));
       } else {
         setPosts([]);
         setTotalPages(1);
