@@ -75,16 +75,16 @@ router.get('/dashboard/stats', authenticateToken, requireAdmin, async (req, res)
 // 管理员活动日志（仅返回结构化的注册/发帖事件，避免返回HTML内容）
 router.get('/dashboard/activity', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    // 最近注册用户
+    // 最近注册用户（使用 join_date 作为真实注册时间，如果为空则使用 created_at）
     const recentRegistrations = await dbQuery(`
       SELECT 
         'register' AS type,
         u.username AS username,
         NULL AS title,
         NULL AS category,
-        u.created_at AS timestamp
+        COALESCE(u.join_date, u.created_at) AS timestamp
       FROM users u
-      ORDER BY u.created_at DESC
+      ORDER BY COALESCE(u.join_date, u.created_at) DESC
       LIMIT 10
     `);
 
@@ -167,9 +167,9 @@ router.get('/system/status', authenticateToken, requireAdmin, async (req, res) =
 router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const users = await dbQuery(`
-      SELECT id, username, email, points, is_admin, created_at, last_login 
+      SELECT id, username, email, points, is_admin, created_at, join_date, last_login 
       FROM users 
-      ORDER BY created_at DESC
+      ORDER BY COALESCE(join_date, created_at) DESC
     `);
     
     res.json({ success: true, data: users });

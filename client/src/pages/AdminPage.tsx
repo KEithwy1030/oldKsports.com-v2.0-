@@ -90,7 +90,8 @@ const AdminPage: React.FC = () => {
               email: u.email,
               points,
               level,
-              joinDate: u.created_at ? new Date(u.created_at) : new Date(),
+              // 优先使用 join_date（真实注册时间），如果没有则使用 created_at
+              joinDate: u.join_date ? new Date(u.join_date) : (u.created_at ? new Date(u.created_at) : new Date()),
               hasUploadedAvatar: !!u.avatar,
               avatar: u.avatar || null,
               isAdmin: !!u.is_admin,
