@@ -75,18 +75,37 @@ const Navigation: React.FC = () => {
 
   // 用户登录时获取通知
   useEffect(() => {
-    if (user) {
-      fetchNotificationCounts();
-    }
-  }, [user]);
+    // 未登录时不执行通知相关逻辑
+    if (!user || !isAuthenticated) return;
+    
+    fetchNotificationCounts();
+  }, [user, isAuthenticated]);
 
   // 定期更新通知数量
   useEffect(() => {
-    if (!user) return;
+    // 未登录时不执行通知相关逻辑
+    if (!user || !isAuthenticated) return;
     
     const interval = setInterval(fetchNotificationCounts, 30000); // 每30秒更新一次
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, isAuthenticated]);
+  
+  // 组件挂载和卸载时的清理逻辑
+  useEffect(() => {
+    // 组件挂载时设置标志
+    isMountedRef.current = true;
+    
+    return () => {
+      // 组件卸载时：
+      // 1. 设置挂载标志为 false
+      isMountedRef.current = false;
+      // 2. 取消未完成的请求
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, []);
 
   // 组件卸载时清理定时器
   useEffect(() => {
@@ -99,7 +118,10 @@ const Navigation: React.FC = () => {
 
   // 标记通知类型为已读
   const markNotificationsAsRead = async (type: string) => {
-    if (!user) return;
+    if (!user || !isAuthenticated) return;
+    
+    // 检查组件是否仍挂载
+    if (!isMountedRef.current) return;
     
     try {
       const apiUrl = import.meta.env.VITE_API_URL || '/api';
@@ -112,16 +134,28 @@ const Navigation: React.FC = () => {
         body: JSON.stringify({ type })
       });
       
+      // 再次检查组件是否仍挂载（请求完成后）
+      if (!isMountedRef.current) return;
+      
       if (response.ok) {
-        // 更新本地计数
-        setNotificationCounts(prev => ({
-          ...prev,
-          [type]: 0,
-          total: prev.total - prev[type as keyof typeof prev]
-        }));
+        // 更新本地计数前再次检查组件是否仍挂载
+        if (isMountedRef.current) {
+          setNotificationCounts(prev => ({
+            ...prev,
+            [type]: 0,
+            total: prev.total - prev[type as keyof typeof prev]
+          }));
+        }
       }
-    } catch (error) {
-      console.error('标记通知已读失败:', error);
+    } catch (error: any) {
+      // 忽略 AbortError（请求被取消）
+      if (error.name === 'AbortError') {
+        return;
+      }
+      // 只在组件仍挂载时记录错误
+      if (isMountedRef.current) {
+        console.error('标记通知已读失败:', error);
+      }
     }
   };
 
