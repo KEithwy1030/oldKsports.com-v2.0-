@@ -30,22 +30,22 @@ export const findPosts = (category) => {
 
         // 修改查询以包含最新回复时间和回复数量，并按最新活动时间排序
         const q = normalized ? 
-            `SELECT p.id, p.title, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, u.id as author_id, u.username, u.avatar,
+            `SELECT p.id, p.title, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, u.id as author_id, u.username, u.avatar, u.points as author_points,
              COALESCE(MAX(r.created_at), p.created_at) as latest_activity,
              COUNT(r.id) as reply_count
              FROM users u 
              JOIN forum_posts p ON u.id = p.author_id 
              LEFT JOIN forum_replies r ON p.id = r.post_id 
              WHERE p.category=?
-             GROUP BY p.id, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, u.id, u.username, u.avatar
+             GROUP BY p.id, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, u.id, u.username, u.avatar, u.points
              ORDER BY latest_activity DESC` :
-            `SELECT p.id, p.title, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, u.id as author_id, u.username, u.avatar,
+            `SELECT p.id, p.title, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, u.id as author_id, u.username, u.avatar, u.points as author_points,
              COALESCE(MAX(r.created_at), p.created_at) as latest_activity,
              COUNT(r.id) as reply_count
              FROM users u 
              JOIN forum_posts p ON u.id = p.author_id 
              LEFT JOIN forum_replies r ON p.id = r.post_id 
-             GROUP BY p.id, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, u.id, u.username, u.avatar
+             GROUP BY p.id, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, u.id, u.username, u.avatar, u.points
              ORDER BY latest_activity DESC`;
         const params = normalized ? [normalized] : [];
         
@@ -74,8 +74,8 @@ export const findPosts = (category) => {
 
 export const findPostById = (postId) => {
     return new Promise((resolve, reject) => {
-        // 首先获取帖子信息 - 添加author_id字段
-        const postQuery = "SELECT p.id, p.title, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, u.id as author_id, u.username, u.avatar, u.avatar AS userImg FROM users u JOIN forum_posts p ON u.id = p.author_id WHERE p.id = ?";
+        // 首先获取帖子信息 - 添加author_id字段和author_points字段
+        const postQuery = "SELECT p.id, p.title, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, u.id as author_id, u.username, u.avatar, u.avatar AS userImg, u.points as author_points FROM users u JOIN forum_posts p ON u.id = p.author_id WHERE p.id = ?";
         getDb().query(postQuery, [postId], (err, postData) => {
             if (err) return reject(err);
             if (!postData || postData.length === 0) return resolve(null);
