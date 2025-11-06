@@ -22,52 +22,74 @@ const normalizeCategory = (rawCategory) => {
     return map.hasOwnProperty(text) ? map[text] : text;
 };
 
-export const findPosts = (category) => {
+export const findPosts = (category, page = 1, limit = 20) => {
     return new Promise((resolve, reject) => {
-        // 连接池在 getDb() 内部已确保可用，不再读取未定义的 db.state
-
+        const db = getDb();
         const normalized = normalizeCategory(category);
-
-        // 修改查询以包含最新回复时间和回复数量，并按最新活动时间排序
-        const q = normalized ? 
-            `SELECT p.id, p.title, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, u.id as author_id, u.username, u.avatar, u.points as author_points,
-             COALESCE(MAX(r.created_at), p.created_at) as latest_activity,
-             COUNT(r.id) as reply_count
-             FROM users u 
-             JOIN forum_posts p ON u.id = p.author_id 
-             LEFT JOIN forum_replies r ON p.id = r.post_id 
-             WHERE p.category=?
-             GROUP BY p.id, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, u.id, u.username, u.avatar, u.points
-             ORDER BY latest_activity DESC` :
-            `SELECT p.id, p.title, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, u.id as author_id, u.username, u.avatar, u.points as author_points,
-             COALESCE(MAX(r.created_at), p.created_at) as latest_activity,
-             COUNT(r.id) as reply_count
-             FROM users u 
-             JOIN forum_posts p ON u.id = p.author_id 
-             LEFT JOIN forum_replies r ON p.id = r.post_id 
-             GROUP BY p.id, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, u.id, u.username, u.avatar, u.points
-             ORDER BY latest_activity DESC`;
-        const params = normalized ? [normalized] : [];
         
-        console.log('查询帖子SQL:', q);
-        console.log('查询参数:', params);
+        // 计算偏移量
+        const offset = (page - 1) * limit;
         
-        db.query(q, params, (err, data) => {
+        // 优化查询：先获取帖子总数（用于分页信息）
+        const countQuery = normalized 
+            ? `SELECT COUNT(DISTINCT p.id) as total FROM forum_posts p WHERE p.category = ?`
+            : `SELECT COUNT(*) as total FROM forum_posts p`;
+        const countParams = normalized ? [normalized] : [];
+        
+        // 优化查询：使用子查询获取回复数量，避免复杂的 GROUP BY
+        // 先获取帖子列表，然后单独查询回复数量（或使用子查询）
+        const postsQuery = normalized ?
+            `SELECT p.id, p.title, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, 
+                    p.author_id, u.username, u.avatar, u.points as author_points,
+                    (SELECT MAX(created_at) FROM forum_replies WHERE post_id = p.id) as latest_reply_time,
+                    (SELECT COUNT(*) FROM forum_replies WHERE post_id = p.id) as reply_count
+             FROM forum_posts p
+             JOIN users u ON p.author_id = u.id
+             WHERE p.category = ?
+             ORDER BY COALESCE((SELECT MAX(created_at) FROM forum_replies WHERE post_id = p.id), p.created_at) DESC
+             LIMIT ? OFFSET ?` :
+            `SELECT p.id, p.title, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes,
+                    p.author_id, u.username, u.avatar, u.points as author_points,
+                    (SELECT MAX(created_at) FROM forum_replies WHERE post_id = p.id) as latest_reply_time,
+                    (SELECT COUNT(*) FROM forum_replies WHERE post_id = p.id) as reply_count
+             FROM forum_posts p
+             JOIN users u ON p.author_id = u.id
+             ORDER BY COALESCE((SELECT MAX(created_at) FROM forum_replies WHERE post_id = p.id), p.created_at) DESC
+             LIMIT ? OFFSET ?`;
+        
+        const postsParams = normalized 
+            ? [normalized, limit, offset]
+            : [limit, offset];
+        
+        // 先查询总数
+        db.query(countQuery, countParams, (err, countResult) => {
             if (err) {
-                console.error('查询帖子失败:', err.message);
-                return resolve([]); // 返回空数组而不是拒绝
+                console.error('查询帖子总数失败:', err.message);
+                return resolve({ posts: [], total: 0 });
             }
-            console.log('查询帖子成功，返回数据:', data.length, '条记录');
             
-            // 标准化数据格式，确保前端能正确获取
-            const normalizedData = data.map(post => ({
-                ...post,
-                author: post.username,
-                author_id: post.author_id,
-                timestamp: post.created_at
-            }));
+            const total = countResult[0]?.total || 0;
             
-            resolve(normalizedData);
+            // 再查询帖子列表
+            db.query(postsQuery, postsParams, (err, data) => {
+                if (err) {
+                    console.error('查询帖子失败:', err.message);
+                    return resolve({ posts: [], total: 0 });
+                }
+                
+                console.log(`查询帖子成功: 第${page}页，每页${limit}条，共${total}条，返回${data.length}条记录`);
+                
+                // 标准化数据格式
+                const normalizedData = data.map(post => ({
+                    ...post,
+                    author: post.username,
+                    author_id: post.author_id,
+                    timestamp: post.created_at,
+                    latest_activity: post.latest_reply_time || post.created_at
+                }));
+                
+                resolve({ posts: normalizedData, total: total });
+            });
         });
     });
 };

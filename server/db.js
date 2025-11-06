@@ -56,10 +56,10 @@ const connectionConfig = {
   password: process.env.MYSQL_PASSWORD,
   database: DATABASE_NAME,
   port: parseInt(process.env.MYSQL_PORT || '3306', 10),
-  // 连接超时配置
-  connectTimeout: 30000,        // 30秒连接超时
-  // 连接池配置
-  connectionLimit: 10,          // 最大连接数
+  // 连接超时配置（优化：从30秒减少到10秒）
+  connectTimeout: 10000,        // 10秒连接超时
+  // 连接池配置（优化：从10增加到25）
+  connectionLimit: 25,          // 最大连接数（20-30之间）
   queueLimit: 0,                // 无限制队列
   waitForConnections: true,     // 等待可用连接
   // 重试配置

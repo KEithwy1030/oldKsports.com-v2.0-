@@ -3,11 +3,19 @@ import * as PostService from '../services/post.service.js';
 
 export const getPosts = async (req, res) => {
     try {
-        const posts = await PostService.findPosts(req.query.cat);
-        // 统一返回格式：{ posts: [...], total: number }
+        // 解析分页参数，设置合理的默认值和最大值
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20)); // 默认20，最大100
+        const category = req.query.cat || req.query.category;
+        
+        const result = await PostService.findPosts(category, page, limit);
+        // 统一返回格式：{ posts: [...], total: number, page: number, limit: number }
         return res.status(200).json({ 
-            posts: Array.isArray(posts) ? posts : [],
-            total: Array.isArray(posts) ? posts.length : 0
+            posts: Array.isArray(result.posts) ? result.posts : [],
+            total: result.total || 0,
+            page: page,
+            limit: limit,
+            totalPages: Math.ceil((result.total || 0) / limit)
         });
     } catch (err) {
         console.error('Error in getPosts:', err);

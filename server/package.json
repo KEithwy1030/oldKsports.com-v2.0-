@@ -12,7 +12,11 @@
     "postinstall": "echo 'Backend dependencies installed successfully'",
     "production": "node index.js"
   },
-  "keywords": ["sports", "forum", "community"],
+  "keywords": [
+    "sports",
+    "forum",
+    "community"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -23,7 +27,7 @@
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
-    "mysql2": "^3.14.5"
+    "mysql2": "^3.15.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
