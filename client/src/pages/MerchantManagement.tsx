@@ -108,7 +108,28 @@ const MerchantManagement: React.FC = () => {
   const handleAddMerchant = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      console.log('[Merchant] handleAddMerchant invoked', { formData, contactIcon, contactValue });
+      // 确保获取最新的状态值
+      const currentContactIcon = contactIcon || '📧';
+      const currentContactValue = contactValue || '';
+      const contactInfo = `${currentContactIcon}${currentContactValue}`;
+      
+      const requestBody = {
+        name: formData.name,
+        description: formData.description,
+        contact_info: contactInfo,
+        category: formData.category,
+        website: '',
+        logo_url: ''
+      };
+      
+      console.log('[Merchant] handleAddMerchant invoked', { 
+        formData, 
+        contactIcon: currentContactIcon, 
+        contactValue: currentContactValue,
+        contactInfo,
+        requestBody
+      });
+      
       const token = localStorage.getItem('oldksports_auth_token');
       const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/merchants`, {
         method: 'POST',
@@ -117,14 +138,7 @@ const MerchantManagement: React.FC = () => {
           'Authorization': `Bearer ${token}`
         },
         credentials: 'include',
-        body: JSON.stringify({
-          name: formData.name,
-          description: formData.description,
-          contact_info: `${contactIcon}${contactValue}`,
-          category: formData.category,
-          website: '',
-          logo_url: ''
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
@@ -355,7 +369,20 @@ const MerchantManagement: React.FC = () => {
 
             {/* 添加商家按钮 */}
             <button
-              onClick={() => setShowAddModal(true)}
+              onClick={() => {
+                // 重置表单状态
+                setFormData({
+                  name: '',
+                  description: '',
+                  category: 'gold',
+                  contact_info: '',
+                  website: '',
+                  logo_url: ''
+                });
+                setContactIcon('📧');
+                setContactValue('');
+                setShowAddModal(true);
+              }}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 transition-colors"
             >
               <Plus className="w-4 h-4" />
