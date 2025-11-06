@@ -87,7 +87,8 @@ const Captcha: React.FC<CaptchaProps> = ({ onVerify, className = '', placeholder
     setCaptchaCode(code);
     setUserInput('');
     setIsVerified(false);
-    onVerify(false);
+    // 避免在首帧渲染内同步触发父组件状态更新，延后一拍
+    Promise.resolve().then(() => onVerify(false));
     drawCaptcha(code);
   }, [onVerify]);
 

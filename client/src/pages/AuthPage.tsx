@@ -29,7 +29,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ mode }) => {
 
   // 创建稳定的回调函数，避免频繁重新渲染
   const handleCaptchaVerify = useCallback((isValid: boolean) => {
-    setIsCaptchaValid(isValid);
+    // 仅在值发生变化时更新，减少不必要的渲染与竞态
+    setIsCaptchaValid(prev => (prev === isValid ? prev : isValid));
   }, []);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
