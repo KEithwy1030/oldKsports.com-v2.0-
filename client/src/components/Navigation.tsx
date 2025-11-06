@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { useTheme } from '../context/ThemeContext';
 import { User, LogOut, Menu, X, Bell, MessageCircle, AtSign, Mail, AlertCircle, Sun, Moon } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useMountedSignal } from '../hooks/useMountedSignal';
 
 const Navigation: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -25,6 +26,9 @@ const Navigation: React.FC = () => {
     system: 0
   });
   const isHomePage = location.pathname === '/';
+  
+  // 全局可复用的挂载/取消管理
+  const { isMountedRef, nextSignal, cancelPending } = useMountedSignal();
 
   // 显示通知菜单
   const showNotificationMenu = () => {
@@ -52,24 +56,45 @@ const Navigation: React.FC = () => {
   
   // 获取通知数量
   const fetchNotificationCounts = async () => {
+    // 未登录时不执行通知相关逻辑
     if (!user || !isAuthenticated) return;
+    
+    // 检查组件是否仍挂载
+    if (!isMountedRef.current) return;
+    
+    // 获取新的 signal（自动取消上一请求）
+    const signal = nextSignal();
     
     try {
       const apiUrl = import.meta.env.VITE_API_URL || '/api';
       const response = await fetch(`${apiUrl}/notifications/unread-count`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('oldksports_auth_token')}`
-        }
+        },
+        signal
       });
+      
+      // 再次检查组件是否仍挂载（请求完成后）
+      if (!isMountedRef.current) return;
       
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setNotificationCounts(data.data);
+          // 更新状态前再次检查组件是否仍挂载
+          if (isMountedRef.current) {
+            setNotificationCounts(data.data);
+          }
         }
       }
-    } catch (error) {
-      console.error('获取通知数量失败:', error);
+    } catch (error: any) {
+      // 忽略 AbortError（请求被取消）
+      if (error.name === 'AbortError') {
+        return;
+      }
+      // 只在组件仍挂载时记录错误
+      if (isMountedRef.current) {
+        console.error('获取通知数量失败:', error);
+      }
     }
   };
 
@@ -100,10 +125,7 @@ const Navigation: React.FC = () => {
       // 1. 设置挂载标志为 false
       isMountedRef.current = false;
       // 2. 取消未完成的请求
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
+      cancelPending();
     };
   }, []);
 
