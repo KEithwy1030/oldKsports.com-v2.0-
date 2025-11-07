@@ -2,6 +2,7 @@ import React from 'react';
 import DOMPurify from 'dompurify';
 import { buildImageUrl, fixImageUrlsInContent } from '../utils/imageUtils';
 import { fixHistoricalImageUrls, needsImageUrlFix } from '../utils/imageUrlFixer';
+import { debugLog } from '../utils/debug';
 
 interface HtmlContentProps {
   content: string;
@@ -12,7 +13,7 @@ interface HtmlContentProps {
 const HtmlContent: React.FC<HtmlContentProps> = ({ content, className, hideImages = false }) => {
   // 检查是否需要修复历史图片URL
   const needsFix = needsImageUrlFix(content);
-  console.log('🔧 HtmlContent 是否需要修复:', needsFix);
+  debugLog('🔧 HtmlContent 是否需要修复:', needsFix);
   
   // 先修复历史图片URL，再修复图片URL，确保图片能正确显示
   let processedContent = needsFix ? fixHistoricalImageUrls(content) : content;

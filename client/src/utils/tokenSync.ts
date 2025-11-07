@@ -1,4 +1,6 @@
 // 令牌同步工具 - 确保前端令牌存储一致性
+import { debugLog } from './debug';
+
 export const tokenSync = {
   // 获取有效的令牌（优先使用新的存储位置）
   getValidToken: (): string | null => {
@@ -11,7 +13,7 @@ export const tokenSync = {
       // 如果找到旧令牌，同步到新位置
       if (token) {
         localStorage.setItem('oldksports_auth_token', token);
-        console.log('令牌同步: 从旧位置迁移到新位置');
+        debugLog('令牌同步: 从旧位置迁移到新位置');
       }
     }
     
@@ -22,7 +24,7 @@ export const tokenSync = {
   setToken: (token: string): void => {
     localStorage.setItem('oldksports_auth_token', token); // 新位置
     localStorage.setItem('access_token', token); // 旧位置（兼容性）
-    console.log('令牌存储: 已同步到所有位置');
+    debugLog('令牌存储: 已同步到所有位置');
   },
 
   // 清理所有令牌
@@ -35,7 +37,7 @@ export const tokenSync = {
     // 清理cookies
     document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
     
-    console.log('令牌清理: 已清理所有位置的令牌');
+    debugLog('令牌清理: 已清理所有位置的令牌');
   },
 
   // 验证令牌是否有效
@@ -51,7 +53,7 @@ export const tokenSync = {
       });
       
       const isValid = response.ok;
-      console.log('令牌验证:', { isValid, status: response.status });
+      debugLog('令牌验证:', { isValid, status: response.status });
       return isValid;
     } catch (error) {
       console.error('令牌验证失败:', error);
@@ -64,9 +66,9 @@ export const tokenSync = {
 export const initTokenSync = (): void => {
   const token = tokenSync.getValidToken();
   if (token) {
-    console.log('令牌同步初始化: 找到有效令牌');
+    debugLog('令牌同步初始化: 找到有效令牌');
     tokenSync.setToken(token); // 确保存储在所有位置
   } else {
-    console.log('令牌同步初始化: 未找到有效令牌');
+    debugLog('令牌同步初始化: 未找到有效令牌');
   }
 };

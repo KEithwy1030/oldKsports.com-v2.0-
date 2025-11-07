@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Calendar, Gift, Star } from 'lucide-react';
+import { debugLog } from '../utils/debug';
 
 interface CheckinReminderModalProps {
   isOpen: boolean;
@@ -14,14 +15,14 @@ const CheckinReminderModal: React.FC<CheckinReminderModalProps> = ({
   onNavigateToCheckin,
   consecutiveDays = 0
 }) => {
-  console.log('🔔 CheckinReminderModal渲染 - isOpen:', isOpen, 'consecutiveDays:', consecutiveDays);
+  debugLog('🔔 CheckinReminderModal渲染 - isOpen:', isOpen, 'consecutiveDays:', consecutiveDays);
   
   if (!isOpen) {
-    console.log('🔔 CheckinReminderModal不渲染 - isOpen为false');
+    debugLog('🔔 CheckinReminderModal不渲染 - isOpen为false');
     return null;
   }
   
-  console.log('🔔 CheckinReminderModal正在渲染弹窗');
+  debugLog('🔔 CheckinReminderModal正在渲染弹窗');
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

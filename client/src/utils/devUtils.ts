@@ -1,4 +1,5 @@
 // 开发环境工具函数，用于验证API配置
+import { debugLog } from './debug';
 
 export const validateApiConfig = () => {
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -7,9 +8,9 @@ export const validateApiConfig = () => {
   console.group('🔍 API Configuration Validation');
   
   if (isDev) {
-    console.log('✅ Development mode detected');
-    console.log('📍 VITE_API_URL:', apiUrl);
-    console.log('🌐 Full API Base URL:', `${apiUrl}/auth/login`);
+    debugLog('✅ Development mode detected');
+    debugLog('📍 VITE_API_URL:', apiUrl);
+    debugLog('🌐 Full API Base URL:', `${apiUrl}/auth/login`);
     
     // 验证API URL格式
     if (!apiUrl) {
@@ -19,7 +20,7 @@ export const validateApiConfig = () => {
     } else if (!apiUrl.includes('/api')) {
       console.warn('⚠️  VITE_API_URL should include /api path');
     } else {
-      console.log('✅ API URL format is correct');
+      debugLog('✅ API URL format is correct');
     }
     
     // 测试API连接
@@ -33,7 +34,7 @@ export const testApiConnection = async () => {
   try {
     const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/health`);
     const data = await response.json();
-    console.log('✅ API Health Check:', data.status);
+    debugLog('✅ API Health Check:', data.status);
   } catch (error) {
     console.error('❌ API Connection Failed:', error);
   }

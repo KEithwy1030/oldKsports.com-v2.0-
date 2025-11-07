@@ -1,6 +1,8 @@
 // 图片URL构建工具
 // 支持本地开发和生产环境
 
+import { debugLog } from './debug';
+
 /**
  * 构建图片URL
  * @param imagePath 图片路径，如 "/uploads/images/filename.jpg"
@@ -9,8 +11,8 @@
 export const buildImageUrl = (imagePath: string): string => {
   if (!imagePath) return '';
   
-  console.log('🖼️ buildImageUrl 输入:', imagePath);
-  console.log('🖼️ 当前环境:', {
+  debugLog('🖼️ buildImageUrl 输入:', imagePath);
+  debugLog('🖼️ 当前环境:', {
     PROD: import.meta.env.PROD,
     DEV: import.meta.env.DEV,
     VITE_API_URL: import.meta.env.VITE_API_URL,
@@ -25,7 +27,7 @@ export const buildImageUrl = (imagePath: string): string => {
   
   // 放行 data:/blob: 这类内联或临时URL（用于刚发表的回复）
   if (imagePath.startsWith('data:') || imagePath.startsWith('blob:')) {
-    console.log('🖼️ 内联URL，直接返回:', imagePath);
+    debugLog('🖼️ 内联URL，直接返回:', imagePath);
     return imagePath;
   }
 
@@ -60,14 +62,14 @@ export const buildImageUrl = (imagePath: string): string => {
   // 确保路径以 / 开头
   const normalizedPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
   
-  console.log('🖼️ API URL:', apiUrl);
+  debugLog('🖼️ API URL:', apiUrl);
   
   // 无论环境，只要是 /uploads/images 的相对路径，生产固定 oldksports.com
   if (normalizedPath.startsWith('/uploads/images/')) {
     const result = import.meta.env.PROD 
       ? `https://oldksports.com${normalizedPath}`
       : `${window.location.origin}${normalizedPath}`;
-    console.log('🖼️ uploads 最终URL:', result);
+    debugLog('🖼️ uploads 最终URL:', result);
     return result;
   }
 
@@ -76,20 +78,20 @@ export const buildImageUrl = (imagePath: string): string => {
     // 本地开发时，使用环境变量或默认后端地址
     const backendUrl = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000');
     const result = `${backendUrl}${normalizedPath}`;
-    console.log('🖼️ 本地开发URL:', result);
+    debugLog('🖼️ 本地开发URL:', result);
     return result;
   }
   
   // 生产环境：API URL是完整URL，替换 /api 为根路径
   if (apiUrl.startsWith('http')) {
     const result = baseUrl + normalizedPath;
-    console.log('🖼️ 生产环境URL:', result);
+    debugLog('🖼️ 生产环境URL:', result);
     return result;
   }
   
   // 兜底方案：使用当前域名
   const result = window.location.origin + normalizedPath;
-  console.log('🖼️ 兜底URL:', result);
+  debugLog('🖼️ 兜底URL:', result);
   return result;
 };
 

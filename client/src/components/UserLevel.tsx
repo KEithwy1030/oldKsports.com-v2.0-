@@ -3,6 +3,7 @@ import { userAPI } from '../utils/api';
 import { checkUsernameBeforeApiCall } from '../utils/userIdValidator';
 import { getUserLevel } from '../utils/userUtils';
 import { UserLevel } from '../types';
+import { debugLog } from '../utils/debug';
 
 interface UserLevelProps {
   username: string;
@@ -16,7 +17,7 @@ const UserLevelComponent: React.FC<UserLevelProps> = ({ username, className = ''
 
   useEffect(() => {
     const fetchUserLevel = async () => {
-      console.log('🏆 UserLevel fetchUserLevel被调用:', {
+      debugLog('🏆 UserLevel fetchUserLevel被调用:', {
         username,
         usernameType: typeof username,
         usernameLength: username ? username.length : 0
@@ -32,12 +33,12 @@ const UserLevelComponent: React.FC<UserLevelProps> = ({ username, className = ''
       setIsLoading(true);
       setError(false);
       try {
-        console.log(`Fetching user info for: ${username}`);
+        debugLog(`Fetching user info for: ${username}`);
         const response = await userAPI.getUserInfo(username);
-        console.log(`User info response for ${username}:`, response);
+        debugLog(`User info response for ${username}:`, response);
         if (response.success) {
           const level = getUserLevel(response.user.points);
-          console.log(`Calculated level for ${username} (${response.user.points} points):`, level);
+          debugLog(`Calculated level for ${username} (${response.user.points} points):`, level);
           setUserLevel(level);
         } else {
           console.warn('🏆 UserLevel: 获取用户信息失败，使用默认等级');

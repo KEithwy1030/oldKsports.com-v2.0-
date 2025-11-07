@@ -1,4 +1,6 @@
 // 用户ID验证工具 - 根据Zeabur Agent建议
+import { debugLog } from './debug';
+
 export const validateUserId = (userId: any): boolean => {
   if (!userId) return false;
   if (typeof userId === 'string' && (userId === 'undefined' || userId === 'null' || userId === '')) return false;
@@ -15,7 +17,7 @@ export const validateUsername = (username: any): boolean => {
 
 // 在API调用前检查用户ID
 export const checkUserIdBeforeApiCall = (userId: any, apiName: string): boolean => {
-  console.log(`🔍 ${apiName}: 检查用户ID:`, {
+  debugLog(`🔍 ${apiName}: 检查用户ID:`, {
     userId,
     userIdType: typeof userId,
     isValid: validateUserId(userId)
@@ -31,7 +33,7 @@ export const checkUserIdBeforeApiCall = (userId: any, apiName: string): boolean 
 
 // 在API调用前检查用户名
 export const checkUsernameBeforeApiCall = (username: any, apiName: string): boolean => {
-  console.log(`🔍 ${apiName}: 检查用户名:`, {
+  debugLog(`🔍 ${apiName}: 检查用户名:`, {
     username,
     usernameType: typeof username,
     isValid: validateUsername(username)

@@ -13,6 +13,7 @@ import {
   Star
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { debugLog } from '../utils/debug';
 
 interface DashboardStats {
   totalUsers: number;
@@ -127,10 +128,10 @@ const AdminDashboard: React.FC = () => {
       }
 
       // 获取系统状态
-      console.log('🔍 获取系统状态，API URL:', import.meta.env.VITE_API_URL || '/api');
+      debugLog('🔍 获取系统状态，API URL:', import.meta.env.VITE_API_URL || '/api');
       const systemResponse = await authFetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/system/status`);
       
-      console.log('🔍 系统状态响应:', {
+      debugLog('🔍 系统状态响应:', {
         ok: systemResponse.ok,
         status: systemResponse.status,
         statusText: systemResponse.statusText
@@ -138,10 +139,10 @@ const AdminDashboard: React.FC = () => {
       
       if (systemResponse.ok) {
         const systemData = await systemResponse.json();
-        console.log('🔍 系统状态数据:', systemData);
+        debugLog('🔍 系统状态数据:', systemData);
         if (systemData.success) {
           setSystemStatus(systemData.data);
-          console.log('🔍 设置系统状态:', systemData.data);
+          debugLog('🔍 设置系统状态:', systemData.data);
         } else {
           console.error('❌ 系统状态API返回失败:', systemData);
         }

@@ -1,6 +1,8 @@
 // 强制清理工具 - 解决undefined错误
+import { debugLog } from './debug';
+
 export const forceCleanup = () => {
-  console.log('🧹 开始强制清理...');
+  debugLog('🧹 开始强制清理...');
   
   try {
     // 清理localStorage
@@ -17,7 +19,7 @@ export const forceCleanup = () => {
     document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
     document.cookie = 'oldksports_auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
     
-    console.log('🧹 强制清理完成');
+    debugLog('🧹 强制清理完成');
     return true;
   } catch (error) {
     console.error('🧹 强制清理失败:', error);
@@ -46,7 +48,7 @@ export const validateUserData = (user: any): boolean => {
     return false;
   }
   
-  console.log('🔍 用户数据验证通过');
+  debugLog('🔍 用户数据验证通过');
   return true;
 };
 

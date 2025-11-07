@@ -1,6 +1,7 @@
 // 安全的用户数据Hook - 防止undefined错误
 import { useAuth } from '../context/AuthContext';
 import { useEffect, useState } from 'react';
+import { debugLog } from '../utils/debug';
 
 export const useSafeUser = () => {
   const { user, isLoading, isAuthenticated } = useAuth();
@@ -8,7 +9,7 @@ export const useSafeUser = () => {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    console.log('useSafeUser检查:', {
+    debugLog('useSafeUser检查:', {
       isLoading,
       isAuthenticated,
       hasUser: !!user,
@@ -31,7 +32,7 @@ export const useSafeUser = () => {
     }
 
     // 用户数据完整，设置安全用户
-    console.log('useSafeUser: 用户数据完整，设置安全用户');
+    debugLog('useSafeUser: 用户数据完整，设置安全用户');
     setSafeUser(user);
     setIsReady(true);
   }, [user, isLoading, isAuthenticated]);

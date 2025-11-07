@@ -1,5 +1,6 @@
 // 图片URL修复工具
 import { buildImageUrl } from './imageUtils';
+import { debugLog } from './debug';
 
 /**
  * 修复历史数据中的图片URL
@@ -9,7 +10,7 @@ import { buildImageUrl } from './imageUtils';
 export const fixHistoricalImageUrls = (content: string): string => {
   if (!content) return content;
   
-  console.log('🔧 修复历史图片URL:', content.substring(0, 100) + '...');
+  debugLog('🔧 修复历史图片URL:', content.substring(0, 100) + '...');
   
   // 修复各种可能的旧URL格式
   let fixedContent = content;
@@ -19,7 +20,7 @@ export const fixHistoricalImageUrls = (content: string): string => {
     /http:\/\/localhost:3001(\/uploads\/images\/[^"]*)/g,
     (match, path) => {
       const newUrl = buildImageUrl(path);
-      console.log('🔧 修复 localhost:3001:', match, '->', newUrl);
+      debugLog('🔧 修复 localhost:3001:', match, '->', newUrl);
       return newUrl;
     }
   );
@@ -29,7 +30,7 @@ export const fixHistoricalImageUrls = (content: string): string => {
     /https:\/\/oldksports.*\.zeabur\.app(\/uploads\/images\/[^"]*)/g,
     (match, path) => {
       const newUrl = buildImageUrl(path);
-      console.log('🔧 修复 zeabur.app:', match, '->', newUrl);
+      debugLog('🔧 修复 zeabur.app:', match, '->', newUrl);
       return newUrl;
     }
   );
@@ -39,7 +40,7 @@ export const fixHistoricalImageUrls = (content: string): string => {
     /<img([^>]+)src="(\/uploads\/images\/[^"]+)"([^>]*)>/g,
     (match, before, src, after) => {
       const newUrl = buildImageUrl(src);
-      console.log('🔧 修复相对路径:', src, '->', newUrl);
+      debugLog('🔧 修复相对路径:', src, '->', newUrl);
       return `<img${before}src="${newUrl}"${after}>`;
     }
   );

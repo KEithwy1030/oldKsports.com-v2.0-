@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { debugLog } from '../utils/debug';
 
 /**
  * 用户等级同步组件
@@ -12,7 +13,7 @@ const UserLevelSync: React.FC = () => {
   useEffect(() => {
     // 只在用户登录且尚未重新计算时执行一次
     if (user && !hasRecalculated.current) {
-      console.log('UserLevelSync: Recalculating user level for', user.username);
+      debugLog('UserLevelSync: Recalculating user level for', user.username);
       recalculateUserLevel();
       hasRecalculated.current = true;
     }

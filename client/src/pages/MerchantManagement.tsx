@@ -17,6 +17,7 @@ import {
   Filter
 } from 'lucide-react';
 import BrowserCompatibleModal from '../components/BrowserCompatibleModal';
+import { debugLog } from '../utils/debug';
 
 interface Merchant {
   id: number;
@@ -122,7 +123,7 @@ const MerchantManagement: React.FC = () => {
         logo_url: ''
       };
       
-      console.log('[Merchant] handleAddMerchant invoked', { 
+      debugLog('[Merchant] handleAddMerchant invoked', { 
         formData, 
         contactIcon: currentContactIcon, 
         contactValue: currentContactValue,
@@ -150,7 +151,7 @@ const MerchantManagement: React.FC = () => {
 
       const data = await response.json().catch(() => ({ success: true }));
       if (data?.success !== false) {
-        console.log('[Merchant] 添加成功');
+        debugLog('[Merchant] 添加成功');
         setShowAddModal(false);
         setFormData({
           name: '',

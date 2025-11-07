@@ -1,6 +1,8 @@
 // 全局数据清理工具 - 解决undefined错误
+import { debugLog } from './debug';
+
 export const globalCleanup = () => {
-  console.log('🧹 开始全局清理...');
+  debugLog('🧹 开始全局清理...');
   
   try {
     // 清理所有可能的存储
@@ -12,7 +14,7 @@ export const globalCleanup = () => {
       document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
     });
     
-    console.log('🧹 全局清理完成');
+    debugLog('🧹 全局清理完成');
     return true;
   } catch (error) {
     console.error('🧹 全局清理失败:', error);

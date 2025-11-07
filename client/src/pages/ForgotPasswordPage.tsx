@@ -4,6 +4,7 @@ import { Mail, AlertCircle, ArrowLeft, CheckCircle } from 'lucide-react';
 import { authAPI } from '../utils/api';
 import { forgotPasswordSchema } from '../schemas/auth.schema';
 import { handleApiError } from '../utils/api';
+import { debugLog } from '../utils/debug';
 
 const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -34,7 +35,7 @@ const ForgotPasswordPage: React.FC = () => {
         
         // For development purposes, show the reset link
         if (response.resetLink) {
-          console.log('Reset link:', response.resetLink);
+          debugLog('Reset link:', response.resetLink);
           setSuccess(prev => prev + `\n\n测试用重置链接：${response.resetLink}`);
         }
       } else {

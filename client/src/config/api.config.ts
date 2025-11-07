@@ -1,4 +1,6 @@
 // 统一的API配置文件
+import { debugLog } from '../utils/debug';
+
 export const API_CONFIG = {
   // 后端基础URL（生产环境使用环境变量，开发环境使用代理）
   BASE_URL: import.meta.env.VITE_API_URL || '/api',
@@ -34,7 +36,7 @@ export const API_CONFIG = {
 
 // 调试日志
 if (import.meta.env.DEV) {
-  console.log('🔍 API Config:', {
+  debugLog('🔍 API Config:', {
     BASE_URL: API_CONFIG.BASE_URL,
     VITE_API_URL: import.meta.env.VITE_API_URL,
     env: import.meta.env.MODE
@@ -49,7 +51,7 @@ export const buildApiUrl = (endpoint: string): string => {
 export const getAuthHeaders = (): Record<string, string> => {
   const token = localStorage.getItem('oldksports_auth_token');
   
-  console.log('getAuthHeaders Debug:', {
+  debugLog('getAuthHeaders Debug:', {
     tokenExists: !!token,
     tokenLength: token ? token.length : 0,
     tokenPreview: token ? token.substring(0, 20) + '...' : 'null'

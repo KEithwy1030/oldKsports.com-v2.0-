@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { handleApiError } from '../utils/api';
 import { buildApiUrl, getAuthHeaders } from '../config/api.config';
@@ -13,6 +13,7 @@ import 'react-image-crop/dist/ReactCrop.css';
 import AvatarCropper from '../components/AvatarCropper';
 import BrowserCompatibleModal from '../components/BrowserCompatibleModal';
 import RealTimeAvatar from '../components/RealTimeAvatar';
+import { debugLog } from '../utils/debug';
 
 const UserProfile: React.FC = () => {
   const { user, updateUserPoints, updateUser, getForumPosts, onAvatarUpdate } = useAuth();
@@ -111,7 +112,7 @@ const UserProfile: React.FC = () => {
   // 搜狗浏览器特殊处理
   React.useEffect(() => {
     if (isSogouBrowser) {
-      console.log('检测到搜狗浏览器，启用兼容性模式');
+      debugLog('检测到搜狗浏览器，启用兼容性模式');
     }
   }, [isSogouBrowser]);
 
@@ -144,20 +145,20 @@ const UserProfile: React.FC = () => {
   
   // 强制重新加载用户数据
   React.useEffect(() => {
-    console.log('UserProfile组件加载，当前用户状态:', user);
+    debugLog('UserProfile组件加载，当前用户状态:', user);
     
     // 检查localStorage中的用户数据
     const storedUser = localStorage.getItem('oldksports_user');
     if (storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser);
-        console.log('localStorage中的用户数据:', parsedUser);
+        debugLog('localStorage中的用户数据:', parsedUser);
         
         // 如果localStorage中有头像但当前user对象没有，自动修复
         if (parsedUser.avatar && !user?.avatar) {
-          console.log('发现数据不一致，自动修复头像数据');
-          console.log('localStorage头像长度:', parsedUser.avatar?.length);
-          console.log('当前用户头像长度:', user?.avatar?.length);
+          debugLog('发现数据不一致，自动修复头像数据');
+          debugLog('localStorage头像长度:', parsedUser.avatar?.length);
+          debugLog('当前用户头像长度:', user?.avatar?.length);
           
           // 自动触发数据同步（使用非async方式）
           updateUser({
@@ -165,7 +166,7 @@ const UserProfile: React.FC = () => {
             hasUploadedAvatar: parsedUser.hasUploadedAvatar || true
           }).then(() => {
             setAvatarKey(Date.now());
-            console.log('自动修复成功');
+            debugLog('自动修复成功');
           }).catch((error) => {
             console.error('自动修复失败:', error);
             // 如果自动修复失败，提示用户手动操作
@@ -183,7 +184,7 @@ const UserProfile: React.FC = () => {
   React.useEffect(() => {
     // 监听头像更新事件
     const handleAvatarUpdate = (updatedUser: any) => {
-      console.log('头像更新事件触发，更新的用户:', updatedUser);
+      debugLog('头像更新事件触发，更新的用户:', updatedUser);
       setAvatarKey(Date.now()); // 强制刷新头像显示
     };
     
@@ -250,10 +251,10 @@ const UserProfile: React.FC = () => {
     if (user && croppedImageUrl) {
       setIsUploading(true);
       
-      console.log('Saving avatar with URL:', croppedImageUrl);
-      console.log('URL type:', typeof croppedImageUrl);
-      console.log('URL length:', croppedImageUrl.length);
-      console.log('URL starts with data:image:', croppedImageUrl.startsWith('data:image'));
+      debugLog('Saving avatar with URL:', croppedImageUrl);
+      debugLog('URL type:', typeof croppedImageUrl);
+      debugLog('URL length:', croppedImageUrl.length);
+      debugLog('URL starts with data:image:', croppedImageUrl.startsWith('data:image'));
       
       // 强制压缩头像到VARCHAR(255)限制内 - 多重压缩策略
       const compressAvatar = (dataUrl: string): Promise<string> => {
@@ -280,7 +281,7 @@ const UserProfile: React.FC = () => {
             const tryCompression = () => {
               if (currentLevel >= compressionLevels.length) {
                 // 所有级别都尝试过了，返回最后一个结果
-                console.log('所有压缩级别都尝试过了，最终长度:', bestResult.length);
+                debugLog('所有压缩级别都尝试过了，最终长度:', bestResult.length);
                 resolve(bestResult);
                 return;
               }
@@ -305,12 +306,12 @@ const UserProfile: React.FC = () => {
               ctx.drawImage(img, 0, 0, width, height);
               
               const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-              console.log(`压缩级别${currentLevel + 1}: ${maxSize}px, 质量${quality}, 长度: ${compressedDataUrl.length}`);
+              debugLog(`压缩级别${currentLevel + 1}: ${maxSize}px, 质量${quality}, 长度: ${compressedDataUrl.length}`);
               
               // 检查长度限制 - 如果数据库字段已修改为TEXT，则使用更宽松的限制
               const maxLength = 10000; // TEXT字段可以支持更长的数据
               if (compressedDataUrl.length <= maxLength) {
-                console.log('压缩成功！长度:', compressedDataUrl.length);
+                debugLog('压缩成功！长度:', compressedDataUrl.length);
                 resolve(compressedDataUrl);
               } else {
                 bestResult = compressedDataUrl;
@@ -344,17 +345,17 @@ const UserProfile: React.FC = () => {
           hasUploadedAvatar: true
         };
         
-        console.log('Calling updateUser with:', updateData);
+        debugLog('Calling updateUser with:', updateData);
         
         // 先保存到localStorage，确保数据不丢失
         const fallbackUser = { ...user, ...updateData };
         localStorage.setItem('oldksports_user', JSON.stringify(fallbackUser));
-        console.log('头像数据已保存到localStorage:', fallbackUser);
+        debugLog('头像数据已保存到localStorage:', fallbackUser);
         
         // 使用AuthContext的updateUser方法来实现实时更新
         try {
           await updateUser(updateData);
-          console.log('Avatar updated successfully via AuthContext');
+          debugLog('Avatar updated successfully via AuthContext');
           
           // 立即刷新头像显示 - 多重保障
           setAvatarKey(Date.now());
@@ -362,13 +363,13 @@ const UserProfile: React.FC = () => {
           // 强制触发一次状态更新
           setTimeout(() => {
             setAvatarKey(Date.now());
-            console.log('第一次延迟刷新头像');
+            debugLog('第一次延迟刷新头像');
           }, 100);
           
           // 再次确保头像更新
           setTimeout(() => {
             setAvatarKey(Date.now());
-            console.log('第二次延迟刷新头像');
+            debugLog('第二次延迟刷新头像');
           }, 300);
           
         } catch (apiError) {
@@ -376,7 +377,7 @@ const UserProfile: React.FC = () => {
           
           // API失败时，确保localStorage数据是最新的
           localStorage.setItem('oldksports_user', JSON.stringify(fallbackUser));
-          console.log('API失败，使用localStorage回退方案');
+          debugLog('API失败，使用localStorage回退方案');
           
           // 立即刷新头像显示
           setAvatarKey(Date.now());
@@ -386,7 +387,7 @@ const UserProfile: React.FC = () => {
           
           // 延迟刷新页面确保状态同步
           setTimeout(() => {
-            console.log('API失败，使用页面刷新确保状态同步');
+            debugLog('API失败，使用页面刷新确保状态同步');
             window.location.reload();
           }, 500);
         }
@@ -400,7 +401,7 @@ const UserProfile: React.FC = () => {
           
           if (dbData.success && dbData.user) {
             const dbHasUploadedAvatar = dbData.user.hasUploadedAvatar;
-            console.log('数据库中的头像状态:', {
+            debugLog('数据库中的头像状态:', {
               dbHasUploadedAvatar,
               dbHasUploadedAvatarType: typeof dbHasUploadedAvatar,
               userHasUploadedAvatar: user.hasUploadedAvatar,
@@ -419,10 +420,10 @@ const UserProfile: React.FC = () => {
           shouldGivePoints = false;
         }
         
-        console.log('最终积分奖励决定:', shouldGivePoints);
+        debugLog('最终积分奖励决定:', shouldGivePoints);
         
         if (shouldGivePoints) {
-          console.log('首次上传头像，给予积分奖励');
+          debugLog('首次上传头像，给予积分奖励');
           await updateUserPoints(POINTS_SYSTEM.UPLOAD_AVATAR);
           
           // Check if user leveled up
@@ -436,7 +437,7 @@ const UserProfile: React.FC = () => {
             alert(`首次头像上传成功！获得 ${POINTS_SYSTEM.UPLOAD_AVATAR} 积分奖励`);
           }
         } else {
-          console.log('非首次上传头像，不给积分');
+          debugLog('非首次上传头像，不给积分');
           alert('头像更新成功！');
         }
         
@@ -465,7 +466,7 @@ const UserProfile: React.FC = () => {
         // 额外的头像刷新机制
         setTimeout(() => {
           setAvatarKey(Date.now());
-          console.log('延迟刷新头像显示');
+          debugLog('延迟刷新头像显示');
         }, 200);
       } catch (error) {
         console.error('Error saving avatar:', error);
@@ -484,7 +485,7 @@ const UserProfile: React.FC = () => {
     // 确保 selectedRoles 是数组类型
     const safeSelectedRoles = Array.isArray(selectedRoles) ? selectedRoles : [];
     
-    console.log('保存身份信息:', { selectedRoles: safeSelectedRoles, user: user.username });
+    debugLog('保存身份信息:', { selectedRoles: safeSelectedRoles, user: user.username });
     
     setIsSavingRoles(true);
     try {
@@ -505,7 +506,7 @@ const UserProfile: React.FC = () => {
           // 尝试解析 JSON（若无内容会抛错，忽略即可）
           result = await response.json();
         } catch {}
-        console.log('更新成功:', result ?? { status: response.status });
+        debugLog('更新成功:', result ?? { status: response.status });
         
         // 更新本地用户数据
         const updatedUser = { ...user, roles: safeSelectedRoles };
@@ -594,7 +595,7 @@ const UserProfile: React.FC = () => {
     while (dataURL.length > 500000 && quality > 0.3) { // 500KB 限制
       quality -= 0.1;
       dataURL = canvas.toDataURL('image/jpeg', quality);
-      console.log(`Compressed image to quality ${quality}, size: ${dataURL.length}`);
+      debugLog(`Compressed image to quality ${quality}, size: ${dataURL.length}`);
     }
     
     return dataURL;
@@ -603,9 +604,9 @@ const UserProfile: React.FC = () => {
   const getCroppedImg = (image: HTMLImageElement, crop: any): Promise<string> => {
     return new Promise((resolve, reject) => {
       try {
-        console.log('Starting getCroppedImg...');
-        console.log('Image dimensions:', image.naturalWidth, 'x', image.naturalHeight);
-        console.log('Crop parameters:', crop);
+        debugLog('Starting getCroppedImg...');
+        debugLog('Image dimensions:', image.naturalWidth, 'x', image.naturalHeight);
+        debugLog('Crop parameters:', crop);
         
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -621,7 +622,7 @@ const UserProfile: React.FC = () => {
         const scaleX = image.naturalWidth / image.width;
         const scaleY = image.naturalHeight / image.height;
         
-        console.log('Scale factors:', { scaleX, scaleY });
+        debugLog('Scale factors:', { scaleX, scaleY });
         
         // 计算实际像素值
         const pixelCrop = {
@@ -631,7 +632,7 @@ const UserProfile: React.FC = () => {
           height: crop.height * scaleY
         };
         
-        console.log('Pixel crop:', pixelCrop);
+        debugLog('Pixel crop:', pixelCrop);
         
         // 限制最大尺寸为 200x200 像素
         const maxSize = 200;
@@ -642,13 +643,13 @@ const UserProfile: React.FC = () => {
           const ratio = Math.min(maxSize / width, maxSize / height);
           width *= ratio;
           height *= ratio;
-          console.log('Resized to:', { width, height });
+          debugLog('Resized to:', { width, height });
         }
         
         canvas.width = width;
         canvas.height = height;
 
-        console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
+        debugLog('Canvas dimensions:', canvas.width, 'x', canvas.height);
 
         ctx.drawImage(
           image,
@@ -662,11 +663,11 @@ const UserProfile: React.FC = () => {
           height
         );
 
-        console.log('Image drawn to canvas successfully');
+        debugLog('Image drawn to canvas successfully');
 
         // 使用压缩函数
         const dataURL = compressImage(canvas, 0.8);
-        console.log('Final image size:', dataURL.length);
+        debugLog('Final image size:', dataURL.length);
         
         if (!dataURL || dataURL.length === 0) {
           throw new Error('生成的图片数据为空');
@@ -681,17 +682,17 @@ const UserProfile: React.FC = () => {
   };
 
   const handleCropComplete = async () => {
-    console.log('handleCropComplete called');
-    console.log('imgRef:', !!imgRef);
-    console.log('completedCrop:', completedCrop);
-    console.log('completedCrop.width:', completedCrop?.width);
-    console.log('completedCrop.height:', completedCrop?.height);
+    debugLog('handleCropComplete called');
+    debugLog('imgRef:', !!imgRef);
+    debugLog('completedCrop:', completedCrop);
+    debugLog('completedCrop.width:', completedCrop?.width);
+    debugLog('completedCrop.height:', completedCrop?.height);
     
     if (imgRef && completedCrop && completedCrop.width && completedCrop.height) {
       try {
-        console.log('Starting image cropping...');
+        debugLog('Starting image cropping...');
         const croppedImageUrl = await getCroppedImg(imgRef, completedCrop);
-        console.log('Image cropped successfully, URL length:', croppedImageUrl.length);
+        debugLog('Image cropped successfully, URL length:', croppedImageUrl.length);
         setCroppedImageUrl(croppedImageUrl);
         setShowCropper(false);
       } catch (error) {
@@ -699,7 +700,7 @@ const UserProfile: React.FC = () => {
         alert('图片裁剪失败，请重试');
       }
     } else {
-      console.log('Crop validation failed');
+      debugLog('Crop validation failed');
       alert('请先选择裁剪区域');
     }
   };
@@ -746,7 +747,7 @@ const UserProfile: React.FC = () => {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  console.log('头像编辑按钮被点击，浏览器：', navigator.userAgent);
+                  debugLog('头像编辑按钮被点击，浏览器：', navigator.userAgent);
                   setIsEditingAvatar(true);
                   // 强制重新渲染
                   setTimeout(() => {

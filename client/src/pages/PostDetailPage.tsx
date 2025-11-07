@@ -39,7 +39,7 @@ const PostDetailPage: React.FC = () => {
   // 加载帖子详情
   useEffect(() => {
     const loadPost = async () => {
-      console.log('PostDetailPage: 开始加载帖子, postId:', postId);
+      debugLog('PostDetailPage: 开始加载帖子, postId:', postId);
       try {
         // 先从 localStorage 读取，确保本地回复能立即显示
         try {
@@ -47,7 +47,7 @@ const PostDetailPage: React.FC = () => {
           if (raw) {
             const storedPosts = JSON.parse(raw);
             const localFound = storedPosts.find((p: any) => String(p.id) === postId);
-            console.log('PostDetailPage: localStorage中找到帖子:', localFound);
+            debugLog('PostDetailPage: localStorage中找到帖子:', localFound);
             if (localFound) {
               setPost(localFound);
               try { await incrementPostViews(localFound.id); } catch {}
@@ -58,8 +58,8 @@ const PostDetailPage: React.FC = () => {
         // 再请求后端API获取单个帖子，成功则以服务端数据为准
         if (postId) {
           const response = await forumAPI.getPostById(postId);
-          console.log('PostDetailPage: API响应:', response);
-          console.log('PostDetailPage: 帖子数据:', {
+          debugLog('PostDetailPage: API响应:', response);
+          debugLog('PostDetailPage: 帖子数据:', {
             id: response.post?.id,
             title: response.post?.title,
             author: response.post?.author,
@@ -114,7 +114,7 @@ const PostDetailPage: React.FC = () => {
           }
         } catch {}
         
-        console.log('PostDetailPage: 所有方法都失败，跳转到论坛页面');
+        debugLog('PostDetailPage: 所有方法都失败，跳转到论坛页面');
         navigate('/forum');
       } catch (error) {
         console.error('Failed to load post:', error);
@@ -147,7 +147,7 @@ const PostDetailPage: React.FC = () => {
           console.error('AuthContext fallback also failed:', authContextError);
         }
         
-        console.log('PostDetailPage: 所有方法都失败，跳转到论坛页面');
+        debugLog('PostDetailPage: 所有方法都失败，跳转到论坛页面');
         navigate('/forum');
       }
     };

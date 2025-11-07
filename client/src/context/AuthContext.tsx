@@ -6,6 +6,7 @@ import { userAPI, authAPI, healthCheck, databaseCheck, handleApiError, forumAPI 
 import { clearAllUserCache } from '../components/UserHoverCard';
 import { getUserLevel } from '../utils/userUtils';
 import { forceCleanup, validateUserData, getSafeUsername } from '../utils/forceCleanup';
+import { debugLog } from '../utils/debug';
 
 const BOT_ACCOUNTS_KEY = 'oldksports_bot_accounts';
 const FORUM_POSTS_KEY = 'oldksports_forum_posts';
@@ -54,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   // 紧急防护：确保用户数据完整性（更宽松的检查）
   const getSafeUser = useCallback(() => {
-    console.log('🔍 AuthContext getSafeUser检查:', {
+    debugLog('🔍 AuthContext getSafeUser检查:', {
       hasUser: !!user,
       userId: user?.id,
       username: user?.username,
@@ -80,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return null;
     }
     
-    console.log('🔍 AuthContext: 用户数据验证通过');
+    debugLog('🔍 AuthContext: 用户数据验证通过');
     return user;
   }, [user]);
 
@@ -88,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const token = localStorage.getItem('oldksports_auth_token');
     const savedUser = localStorage.getItem('oldksports_user');
     
-    console.log('AuthContext初始化检查:', {
+    debugLog('AuthContext初始化检查:', {
       hasToken: !!token,
       hasSavedUser: !!savedUser,
       tokenLength: token ? token.length : 0,
@@ -100,7 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const userData = JSON.parse(savedUser);
         
         // 验证用户数据完整性（更宽松的检查）
-        console.log('🔍 解析用户数据:', {
+        debugLog('🔍 解析用户数据:', {
           id: userData.id,
           username: userData.username,
           idType: typeof userData.id,
@@ -138,9 +139,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           joinDate: userData.joinDate ? new Date(userData.joinDate) : (userData.created_at ? new Date(userData.created_at) : new Date())
         };
         
-        console.log('AuthContext初始化 - 从localStorage加载用户数据:', userData);
-        console.log('AuthContext初始化 - 处理后的用户数据:', processedUserData);
-        console.log('用户ID验证:', {
+        debugLog('AuthContext初始化 - 从localStorage加载用户数据:', userData);
+        debugLog('AuthContext初始化 - 处理后的用户数据:', processedUserData);
+        debugLog('用户ID验证:', {
           id: processedUserData.id,
           idType: typeof processedUserData.id,
           username: processedUserData.username
@@ -167,8 +168,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (response.token) {
         localStorage.setItem('oldksports_auth_token', response.token);
         localStorage.setItem('access_token', response.token); // 兼容性
-        console.log('登录成功 - 令牌已同步到所有位置');
-        console.log('🔑 Token存储验证:', {
+        debugLog('登录成功 - 令牌已同步到所有位置');
+        debugLog('🔑 Token存储验证:', {
           oldksports_auth_token: localStorage.getItem('oldksports_auth_token') ? '已存储' : '未存储',
           access_token: localStorage.getItem('access_token') ? '已存储' : '未存储',
           tokenLength: response.token.length
@@ -185,16 +186,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         joinDate: userData.joinDate ? new Date(userData.joinDate) : (userData.created_at ? new Date(userData.created_at) : new Date())
       };
       
-      console.log('Login - 原始用户数据:', userData);
-      console.log('Login - 处理后的用户数据:', processedUserData);
-        console.log('Login - isAdmin字段检查:', {
+      debugLog('Login - 原始用户数据:', userData);
+      debugLog('Login - 处理后的用户数据:', processedUserData);
+        debugLog('Login - isAdmin字段检查:', {
         原始isAdmin: userData.isAdmin,
         最终isAdmin: processedUserData.isAdmin
       });
       
       // 将处理后的数据保存到localStorage
       localStorage.setItem('oldksports_user', JSON.stringify(processedUserData));
-      console.log('Login - 头像信息:', {
+      debugLog('Login - 头像信息:', {
         hasAvatar: !!processedUserData.avatar,
         avatarLength: processedUserData.avatar?.length,
         hasUploadedAvatar: processedUserData.hasUploadedAvatar
@@ -257,8 +258,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (response.token) {
         localStorage.setItem('oldksports_auth_token', response.token);
         localStorage.setItem('access_token', response.token); // 兼容性
-        console.log('注册成功 - 令牌已同步到所有位置');
-        console.log('🔑 注册Token存储验证:', {
+        debugLog('注册成功 - 令牌已同步到所有位置');
+        debugLog('🔑 注册Token存储验证:', {
           oldksports_auth_token: localStorage.getItem('oldksports_auth_token') ? '已存储' : '未存储',
           access_token: localStorage.getItem('access_token') ? '已存储' : '未存储',
           tokenLength: response.token.length
@@ -275,8 +276,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         joinDate: userData.joinDate ? new Date(userData.joinDate) : (userData.created_at ? new Date(userData.created_at) : new Date())
       };
       
-      console.log('注册成功 - 原始用户数据:', userData);
-      console.log('注册成功 - 处理后的用户数据:', processedUserData);
+      debugLog('注册成功 - 原始用户数据:', userData);
+      debugLog('注册成功 - 处理后的用户数据:', processedUserData);
       
       // 将处理后的数据保存到localStorage
       localStorage.setItem('oldksports_user', JSON.stringify(processedUserData));
@@ -327,7 +328,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
     
     const newTotalPoints = user.points + pointsToAdd;
-    console.log('Adding', pointsToAdd, 'points to user. From', user.points, 'to', newTotalPoints);
+    debugLog('Adding', pointsToAdd, 'points to user. From', user.points, 'to', newTotalPoints);
     
     try {
       // 尝试调用API更新积分
@@ -344,7 +345,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(updatedUser);
       localStorage.setItem('oldksports_user', JSON.stringify(updatedUser));
       
-      console.log('Points updated successfully via API:', updatedUser);
+      debugLog('Points updated successfully via API:', updatedUser);
       
       // 强制重新渲染UI
       setTimeout(() => {
@@ -367,7 +368,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(updatedUser);
       localStorage.setItem('oldksports_user', JSON.stringify(updatedUser));
       
-      console.log('Points updated locally:', updatedUser);
+      debugLog('Points updated locally:', updatedUser);
       
       // 强制重新渲染UI
       setTimeout(() => {
@@ -413,7 +414,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!prevUser) return prevUser;
       const updatedUser = { ...prevUser, level: getUserLevel(prevUser.points) };
       localStorage.setItem('oldksports_user', JSON.stringify(updatedUser));
-      console.log('User level recalculated:', updatedUser.level);
+      debugLog('User level recalculated:', updatedUser.level);
       return updatedUser;
     });
   }, []);
@@ -423,7 +424,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
     
     try {
-      console.log('刷新用户数据...');
+      debugLog('刷新用户数据...');
       const response = await userAPI.getUserInfo(user.username);
       if (response.success && response.user) {
         const userData = response.user;
@@ -436,7 +437,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           joinDate: userData.joinDate ? new Date(userData.joinDate) : (userData.created_at ? new Date(userData.created_at) : new Date())
         };
         
-        console.log('刷新后的用户数据:', processedUserData);
+        debugLog('刷新后的用户数据:', processedUserData);
         
         // 更新状态和localStorage
         setUser(processedUserData);
@@ -445,7 +446,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // 清除用户卡片缓存，确保显示最新数据
         clearAllUserCache();
         
-        console.log('用户数据刷新成功');
+        debugLog('用户数据刷新成功');
       }
     } catch (error) {
       console.error('刷新用户数据失败:', error);

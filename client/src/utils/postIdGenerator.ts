@@ -1,5 +1,7 @@
 // 帖子ID生成器 - 生成4-6位随机数字，确保永远不重复
 
+import { debugLog } from './debug';
+
 class PostIdGenerator {
   private usedIds: Set<string> = new Set();
   private minLength = 4;
@@ -32,7 +34,7 @@ class PostIdGenerator {
       // 检查是否已使用
       if (!this.usedIds.has(id)) {
         this.usedIds.add(id);
-        console.log(`生成新的帖子ID: ${id} (长度: ${length})`);
+        debugLog(`生成新的帖子ID: ${id} (长度: ${length})`);
         return id;
       }
 

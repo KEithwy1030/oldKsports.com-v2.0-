@@ -124,8 +124,8 @@ async function getUser(username: string, forceRefresh = false): Promise<CachedUs
           points: user?.points ?? 0,
           joinDate: user?.joinDate ?? null,
         };
-        console.log('API返回的用户数据:', user);
-        console.log('解析后的roles:', user?.roles);
+        debugLog('API返回的用户数据:', user);
+        debugLog('解析后的roles:', user?.roles);
       cache.set(username, { data, fetchedAt: Date.now() });
       debugLog('🔥 用户数据已缓存:', data);
       return data;
@@ -157,8 +157,8 @@ function renderCard(user: CachedUser) {
   // 获取身份标签（只显示实际身份，预留空间）
   const getRoleTags = () => {
     const roles = [];
-    console.log('用户卡片调试 - 用户数据:', user);
-    console.log('用户卡片调试 - roles字段:', user.roles);
+    debugLog('用户卡片调试 - 用户数据:', user);
+    debugLog('用户卡片调试 - roles字段:', user.roles);
     
     // 获取用户已选择的身份
     const userRoles = user.roles && user.roles.length > 0 ? user.roles : [];
@@ -184,7 +184,7 @@ function renderCard(user: CachedUser) {
       `);
     }
     
-    console.log('生成的身份标签:', roles);
+    debugLog('生成的身份标签:', roles);
     return roles.join('');
   };
 
@@ -213,7 +213,7 @@ function renderCard(user: CachedUser) {
   // 私信按钮点击处理
   const handlePrivateMessage = () => {
     // 这里可以添加私信逻辑
-    console.log(`发送私信给 ${user.username}`);
+    debugLog(`发送私信给 ${user.username}`);
     // 可以触发私信窗口或跳转到私信页面
   };
 

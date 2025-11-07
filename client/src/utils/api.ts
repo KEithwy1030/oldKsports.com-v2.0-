@@ -1,6 +1,7 @@
 // API utility functions for Old K Sports
 import { User } from '../types';
 import { buildApiUrl, getAuthHeaders, API_CONFIG } from '../config/api.config';
+import { debugLog } from './debug';
 
 // API Response types
 export interface ApiResponse<T = any> {
@@ -41,7 +42,7 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
     const url = buildApiUrl(endpoint);
     const authHeaders = getAuthHeaders();
     
-    console.log('API Request Debug:', { 
+    debugLog('API Request Debug:', { 
       url, 
       authHeaders,
       token: authHeaders.Authorization ? 'Present' : 'Missing'
@@ -93,7 +94,7 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
     }
 
     const data = await response.json();
-    console.log('API Response:', data);
+    debugLog('API Response:', data);
     
     // Handle standardized success responses
     // Always return the full data object to match the expected type structure
@@ -166,7 +167,7 @@ export const authAPI = {
 
   // 新增：清理无效token的函数
   clearInvalidTokens: () => {
-    console.log('清理无效的认证token...');
+        debugLog('清理无效的认证token...');
     localStorage.removeItem('oldksports_auth_token');
     localStorage.removeItem('oldksports_user');
     localStorage.removeItem('oldksports_bot_accounts');

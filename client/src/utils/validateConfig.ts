@@ -1,9 +1,11 @@
 // 环境变量验证工具
+import { debugLog } from './debug';
+
 export const validateImageConfig = () => {
   const apiUrl = import.meta.env.VITE_API_URL;
   const isProd = import.meta.env.PROD;
   
-  console.log('🔍 图片配置验证:', {
+  debugLog('🔍 图片配置验证:', {
     apiUrl,
     isProd,
     location: window.location.origin

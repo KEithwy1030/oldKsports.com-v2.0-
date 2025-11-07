@@ -2,8 +2,10 @@
 export const requestLogger = (req, res, next) => {
   const startTime = Date.now();
   
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  console.log('Headers:', JSON.stringify({
+  const shouldLog = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) || process.env.NODE_ENV !== 'production';
+  
+  if (shouldLog) console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  if (shouldLog) console.log('Headers:', JSON.stringify({
     'Content-Type': req.get('Content-Type'),
     'Authorization': req.get('Authorization') ? 'Bearer ***' : 'None',
     'User-Agent': req.get('User-Agent'),
@@ -13,7 +15,7 @@ export const requestLogger = (req, res, next) => {
   
   if (req.body && Object.keys(req.body).length > 0 && !req.path.includes('avatar')) {
     // Don't log avatar data (too large)
-    console.log('Body:', JSON.stringify({
+    if (shouldLog) console.log('Body:', JSON.stringify({
       ...req.body,
       ...(req.body.avatar && { avatar: '[DATA URI]' })
     }, null, 2));
@@ -24,7 +26,7 @@ export const requestLogger = (req, res, next) => {
     const duration = Date.now() - startTime;
     const contentLength = res.get('Content-Length');
     
-    console.log(`${req.method} ${req.path} - ${res.statusCode} - ${duration}ms - ${contentLength || 0} bytes`);
+    if (shouldLog) console.log(`${req.method} ${req.path} - ${res.statusCode} - ${duration}ms - ${contentLength || 0} bytes`);
     
     // Log warnings for slow requests
     if (duration > 1000) {

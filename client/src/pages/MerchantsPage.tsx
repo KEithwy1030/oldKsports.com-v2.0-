@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import PageTransition from '../components/PageTransition';
 import { Merchant } from '../types';
 import { getSystemAvatar } from '../components/SystemAvatars';
+import { debugLog } from '../utils/debug';
 
 const MerchantsPage: React.FC = () => {
   const { user } = useAuth();
@@ -22,7 +23,7 @@ const MerchantsPage: React.FC = () => {
           const data = await response.json();
           if (data.success) {
             setMerchants(data.data);
-            console.log('获取到的商家数据:', data.data);
+            debugLog('获取到的商家数据:', data.data);
           }
         } else {
           console.error('API响应错误:', response.status, response.statusText);

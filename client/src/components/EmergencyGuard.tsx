@@ -1,6 +1,7 @@
 // 紧急防护组件 - 防止undefined错误
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import { debugLog } from '../utils/debug';
 
 interface EmergencyGuardProps {
   children: React.ReactNode;
@@ -18,7 +19,7 @@ const EmergencyGuard: React.FC<EmergencyGuardProps> = ({
 }) => {
   const { user, isLoading, isAuthenticated } = useAuth();
   
-  console.log('🚨 EmergencyGuard检查:', {
+  debugLog('🚨 EmergencyGuard检查:', {
     isLoading,
     isAuthenticated,
     hasUser: !!user,
@@ -30,7 +31,7 @@ const EmergencyGuard: React.FC<EmergencyGuardProps> = ({
   
   // 如果正在加载，显示加载状态
   if (isLoading) {
-    console.log('EmergencyGuard: 正在加载中...');
+    debugLog('EmergencyGuard: 正在加载中...');
     return <>{fallback}</>;
   }
   
@@ -48,7 +49,7 @@ const EmergencyGuard: React.FC<EmergencyGuardProps> = ({
       localStorage.removeItem('oldksports_auth_token');
       localStorage.removeItem('oldksports_user');
       localStorage.removeItem('access_token');
-      console.log('EmergencyGuard: 已清理损坏的localStorage数据');
+      debugLog('EmergencyGuard: 已清理损坏的localStorage数据');
     } catch (error) {
       console.error('EmergencyGuard: 清理localStorage失败:', error);
     }
@@ -74,7 +75,7 @@ const EmergencyGuard: React.FC<EmergencyGuardProps> = ({
     );
   }
   
-  console.log('EmergencyGuard: 用户数据正常，允许渲染');
+  debugLog('EmergencyGuard: 用户数据正常，允许渲染');
   return <>{children}</>;
 };
 

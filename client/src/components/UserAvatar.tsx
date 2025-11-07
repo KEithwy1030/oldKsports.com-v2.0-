@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { userAPI } from '../utils/api';
 import { checkUsernameBeforeApiCall } from '../utils/userIdValidator';
+import { debugLog } from '../utils/debug';
 
 interface UserAvatarProps {
   username: string;
@@ -27,7 +28,7 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
 
   useEffect(() => {
     const fetchAvatar = async () => {
-      console.log('🖼️ UserAvatar fetchAvatar被调用:', {
+      debugLog('🖼️ UserAvatar fetchAvatar被调用:', {
         username,
         usernameType: typeof username,
         usernameLength: username ? username.length : 0
@@ -44,7 +45,7 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
         setIsLoading(true);
         setError(false);
         
-        console.log('UserAvatar: 获取头像:', username);
+        debugLog('UserAvatar: 获取头像:', username);
         const response = await userAPI.getAvatar(username);
         if (response.success) {
           setAvatar(response.avatar);

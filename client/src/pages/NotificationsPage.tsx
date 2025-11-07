@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MessageCircle, AtSign, AlertCircle, Bell, Trash2, ExternalLink, Clock, ChevronDown, ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import PageTransition from '../components/PageTransition';
+import { debugLog } from '../utils/debug';
 
 interface Notification {
   id: number;
@@ -47,8 +48,8 @@ const NotificationsPage: React.FC = () => {
         ? `${apiUrl}/notifications/list?type=${type}` 
         : `${apiUrl}/notifications/list`;
         
-      console.log('🔔 前端获取通知列表:', url);
-      console.log('🔔 当前用户:', user);
+      debugLog('🔔 前端获取通知列表:', url);
+      debugLog('🔔 当前用户:', user);
       
       const response = await fetch(url, {
         headers: {
@@ -56,14 +57,14 @@ const NotificationsPage: React.FC = () => {
         }
       });
       
-      console.log('🔔 通知API响应状态:', response.status, response.statusText);
+      debugLog('🔔 通知API响应状态:', response.status, response.statusText);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('🔔 通知API响应数据:', data);
+        debugLog('🔔 通知API响应数据:', data);
         if (data.success) {
           setNotifications(data.data);
-          console.log('🔔 设置通知数据:', data.data);
+          debugLog('🔔 设置通知数据:', data.data);
         } else {
           console.error('❌ 通知API返回失败:', data);
         }

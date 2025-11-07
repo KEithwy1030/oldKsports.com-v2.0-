@@ -4,6 +4,7 @@ import { User } from '../types';
 import UserLevelBadge from './UserLevelBadge';
 import { INDUSTRY_ROLES } from '../data/constants';
 import { useAuth } from '../context/AuthContext';
+import { debugLog } from '../utils/debug';
 
 interface UserProfileCardProps {
   userId?: string;
@@ -49,10 +50,10 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
               key={currentUser.avatar + (currentUser.id || '')}
               onError={(e) => {
                 console.error('Avatar image failed to load:', e);
-                console.log('Avatar URL:', currentUser.avatar);
+                debugLog('Avatar URL:', currentUser.avatar);
               }}
               onLoad={() => {
-                console.log('Avatar image loaded successfully');
+                debugLog('Avatar image loaded successfully');
               }}
             />
           ) : (
