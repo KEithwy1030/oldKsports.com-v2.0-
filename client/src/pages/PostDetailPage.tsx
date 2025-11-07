@@ -4,6 +4,7 @@ import { ArrowLeft, MessageSquare, Eye, Clock, Heart, Reply, Send, Smile, Image,
 import PageTransition from '../components/PageTransition';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
+import { debugLog } from '../utils/debug';
 import { FORUM_CATEGORIES } from '../data/constants';
 import { mockUsers } from '../data/mockData';
 import { POINTS_SYSTEM, USER_LEVELS } from '../data/constants';
@@ -561,19 +562,19 @@ const PostDetailPage: React.FC = () => {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  console.log('🔥 点击了帖子作者头像:', post.author, 'ID:', post.author_id);
-                  console.log('🔥 当前用户:', user?.username, 'ID:', user?.id);
-                  console.log('🔥 openChatWith函数:', typeof openChatWith);
+                  debugLog('🔥 点击了帖子作者头像:', post.author, 'ID:', post.author_id);
+                  debugLog('🔥 当前用户:', user?.username, 'ID:', user?.id);
+                  debugLog('🔥 openChatWith函数:', typeof openChatWith);
                   
                   if (post.author_id && post.author_id !== user?.id) {
-                    console.log('🔥 正在开启聊天...');
+                    debugLog('🔥 正在开启聊天...');
                     openChatWith({
                       id: post.author_id,
                       username: post.author,
                       avatar: getUserAvatar(post.author)
                     });
                   } else {
-                    console.log('🔥 不能与自己聊天或用户ID无效');
+                    debugLog('🔥 不能与自己聊天或用户ID无效');
                   }
                 }}
                 className="cursor-pointer hover:scale-105 transition-transform"
@@ -667,17 +668,17 @@ const PostDetailPage: React.FC = () => {
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          console.log('🔥 点击了回复者头像:', reply.author, 'ID:', reply.author_id);
+                          debugLog('🔥 点击了回复者头像:', reply.author, 'ID:', reply.author_id);
                           
                           if (reply.author_id && reply.author_id !== user?.id) {
-                            console.log('🔥 正在开启与回复者的聊天...');
+                            debugLog('🔥 正在开启与回复者的聊天...');
                             openChatWith({
                               id: reply.author_id,
                               username: reply.author,
                               avatar: getUserAvatar(reply.author)
                             });
                           } else {
-                            console.log('🔥 不能与自己聊天或用户ID无效');
+                            debugLog('🔥 不能与自己聊天或用户ID无效');
                           }
                         }}
                         className="cursor-pointer hover:scale-105 transition-transform"

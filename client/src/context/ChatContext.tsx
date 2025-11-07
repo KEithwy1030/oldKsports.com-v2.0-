@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { debugLog } from '../utils/debug';
 
 interface ChatUser {
   id: number;
@@ -30,7 +31,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
 
   const openChatWith = (user: ChatUser) => {
-    console.log('🔥 开启与用户的聊天:', user);
+    debugLog('🔥 开启与用户的聊天:', user);
     setSelectedUserId(user.id);
     setSelectedUserInfo(user);
     setIsOpen(true);

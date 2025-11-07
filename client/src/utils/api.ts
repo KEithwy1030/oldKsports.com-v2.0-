@@ -441,5 +441,13 @@ export const forumAPI = {
     return await apiRequest(`/posts/${postId}`, {
       method: 'DELETE'
     });
+  },
+
+  getPostStats: async () => {
+    const response = await apiRequest<{ success: boolean; data: Record<string, { totalPosts: number; totalReplies: number; latestPost: string }> }>('/posts/stats');
+    if (response?.success) {
+      return response.data;
+    }
+    return {} as Record<string, { totalPosts: number; totalReplies: number; latestPost: string }>;
   }
 };

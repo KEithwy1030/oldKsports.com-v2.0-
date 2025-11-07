@@ -1,11 +1,12 @@
 // server/routes/posts.js
 import express from 'express';
-import { getPosts, getPost, addPost, deletePost, updatePost, addReply } from '../controllers/post.controller.js';
+import { getPosts, getPost, addPost, deletePost, updatePost, addReply, getPostStats } from '../controllers/post.controller.js';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
 router.get("/", getPosts);
+router.get("/stats", getPostStats);
 router.get("/:id", getPost);
 router.post("/", authenticateToken, addPost);
 router.post("/:id/replies", authenticateToken, addReply);

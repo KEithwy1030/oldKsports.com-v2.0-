@@ -16,6 +16,7 @@ import { buildImageUrl, fixImageUrlsInContent } from '../utils/imageUtils';
 import { tokenSync } from '../utils/tokenSync';
 import UserAvatar from '../components/UserAvatar';
 import RealTimeAvatar from '../components/RealTimeAvatar';
+import { debugLog } from '../utils/debug';
 
 interface Post {
   id: number;
@@ -36,13 +37,19 @@ interface Post {
   }>;
 }
 
+type SubforumStats = {
+  totalPosts: number;
+  totalReplies: number;
+  latestPost: string;
+};
+
 const ForumPage: React.FC = () => {
   const { user, updateUserPoints } = useAuth();
   const { openChatWith } = useChat();
   const navigate = useNavigate();
   
   const [posts, setPosts] = useState<Post[]>([]);
-  const [allPosts, setAllPosts] = useState<Post[]>([]); // 存储所有帖子用于统计
+  const [subforumStats, setSubforumStats] = useState<Record<string, SubforumStats>>({});
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [newPost, setNewPost] = useState({
@@ -218,17 +225,14 @@ const ForumPage: React.FC = () => {
     return urls;
   };
 
-  // 获取子版块统计信息（使用所有帖子数据）
-  const getSubforumStats = (categoryId: string, allPostsData: Post[]) => {
-    const categoryPosts = allPostsData
-      .filter(post => post.category === categoryId)
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); // 按时间倒序排序
-    
-    const totalPosts = categoryPosts.length;
-    const totalReplies = categoryPosts.reduce((sum, post) => sum + (post.reply_count || 0), 0);
-    const latestPost = totalPosts > 0 ? categoryPosts[0].title : '暂无帖子';
-    
-    return { totalPosts, totalReplies, latestPost };
+  // 获取子版块统计信息
+  const getSubforumStats = (categoryId: string): SubforumStats => {
+    const stats = subforumStats[categoryId];
+    return {
+      totalPosts: stats?.totalPosts || 0,
+      totalReplies: stats?.totalReplies || 0,
+      latestPost: stats?.latestPost || '暂无帖子'
+    };
   };
 
 
@@ -239,7 +243,7 @@ const ForumPage: React.FC = () => {
       if (response.success && response.data) {
         setOnlineUsers(response.data.users || []);
         setTotalOnlineUsers(response.data.totalOnline || 0);
-        console.log('✅ 今日在线用户加载成功:', { 
+        debugLog('✅ 今日在线用户加载成功:', { 
           users: response.data.users.length, 
           total: response.data.totalOnline 
         });
@@ -314,18 +318,14 @@ const ForumPage: React.FC = () => {
     }
   }, []);
 
-  // 加载所有帖子数据（用于统计）
-  const loadAllPosts = useCallback(async () => {
+  // 加载帖子统计信息
+  const loadPostStats = useCallback(async () => {
     try {
-      const data = await forumAPI.getPosts(1, 1000); // 加载足够多的帖子用于统计
-      if (data && data.posts) {
-        setAllPosts(data.posts);
-      } else {
-        setAllPosts([]);
-      }
+      const stats = await forumAPI.getPostStats();
+      setSubforumStats(stats || {});
     } catch (error) {
-      console.error('加载所有帖子失败:', error);
-      setAllPosts([]);
+      console.error('加载帖子统计信息失败:', error);
+      setSubforumStats({});
     }
   }, []);
 
@@ -334,8 +334,8 @@ const ForumPage: React.FC = () => {
     try {
       setLoading(true);
       const data = await forumAPI.getPosts(currentPage, postsPerPage, selectedCategory === 'all' ? undefined : selectedCategory);
-      console.log('[DEBUG] ForumPage loadPosts 响应数据:', data);
-      console.log('[DEBUG] ForumPage loadPosts 数据类型:', typeof data, Array.isArray(data));
+      debugLog('[DEBUG] ForumPage loadPosts 响应数据:', data);
+      debugLog('[DEBUG] ForumPage loadPosts 数据类型:', typeof data, Array.isArray(data));
       
       // 增强容错：支持多种返回格式
       const postsArray = Array.isArray(data) 
@@ -374,11 +374,11 @@ const ForumPage: React.FC = () => {
 
   useEffect(() => {
     loadPosts();
-    loadAllPosts(); // 加载所有帖子用于统计
+    loadPostStats();
     loadMerchants();
     loadBlacklist();
     loadOnlineUsers();
-  }, [loadPosts, loadAllPosts, loadMerchants, loadBlacklist, loadOnlineUsers]);
+  }, [loadPosts, loadPostStats, loadMerchants, loadBlacklist, loadOnlineUsers]);
 
   // 点击外部关闭菜单
   useEffect(() => {
@@ -425,7 +425,7 @@ const ForumPage: React.FC = () => {
         setNewPostImages([]);
         setShowPostForm(false); // 关闭发帖表单
         await loadPosts();
-        await loadAllPosts(); // 刷新统计
+        await loadPostStats(); // 刷新统计
         
         // 更新用户积分
         if (updateUserPoints) {
@@ -443,7 +443,7 @@ const ForumPage: React.FC = () => {
     try {
       await forumAPI.deletePost(postId);
       await loadPosts();
-      await loadAllPosts(); // 刷新统计
+      await loadPostStats(); // 刷新统计
     } catch (error) {
       console.error('删除帖子失败:', error);
       alert('删除帖子失败');
@@ -455,7 +455,7 @@ const ForumPage: React.FC = () => {
     try {
       await forumAPI.updatePost(postId, { category: newCategory });
       await loadPosts();
-      await loadAllPosts(); // 刷新统计
+      await loadPostStats(); // 刷新统计
       setEditingPostId(null);
     } catch (error) {
       console.error('切换子版块失败:', error);
@@ -487,7 +487,7 @@ const ForumPage: React.FC = () => {
     return filtered;
   }, [posts, searchTerm]);
       
-  // 子版块配置（使用 useMemo 动态计算，依赖于 allPosts）
+  // 子版块配置（使用 useMemo 动态计算，依赖于统计数据）
   const subforums = useMemo(() => [
     {
       id: 'tea-room',
@@ -496,7 +496,7 @@ const ForumPage: React.FC = () => {
       icon: Coffee,
       color: 'emerald',
       category: 'general',
-      stats: getSubforumStats('general', allPosts)
+      stats: getSubforumStats('general')
     },
     {
       id: 'business',
@@ -505,7 +505,7 @@ const ForumPage: React.FC = () => {
       icon: Briefcase,
       color: 'blue',
       category: 'business',
-      stats: getSubforumStats('business', allPosts)
+      stats: getSubforumStats('business')
     },
     {
       id: 'blacklist',
@@ -514,9 +514,9 @@ const ForumPage: React.FC = () => {
       icon: AlertTriangle,
       color: 'red',
       category: 'news',
-      stats: getSubforumStats('news', allPosts)
+      stats: getSubforumStats('news')
     }
-  ], [allPosts]);
+  ], [subforumStats]);
 
   return (
     <PageTransition>

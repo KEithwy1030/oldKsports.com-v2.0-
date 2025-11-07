@@ -35,6 +35,7 @@ import OnboardingModal from './components/OnboardingModal';
 import EmergencyGuard from './components/EmergencyGuard';
 import ErrorBoundary from './components/ErrorBoundary';
 import { initUserHoverAutobind } from './components/UserHoverCard';
+import { debugLog } from './utils/debug';
 import { useAuth } from './context/AuthContext';
 import { useCheckin } from './context/CheckinContext';
 import { useOnboarding } from './context/OnboardingContext';
@@ -83,10 +84,10 @@ const AppContent: React.FC = () => {
 
   // 初始化用户卡片自动绑定
   useEffect(() => {
-    console.log('🔥 AppContent: 开始初始化用户卡片自动绑定');
+    debugLog('🔥 AppContent: 开始初始化用户卡片自动绑定');
     try { 
       initUserHoverAutobind(); 
-      console.log('🔥 AppContent: 用户卡片自动绑定初始化成功');
+      debugLog('🔥 AppContent: 用户卡片自动绑定初始化成功');
     } catch (e) { 
       console.error('🔥 AppContent: 用户卡片自动绑定初始化失败:', e); 
     }

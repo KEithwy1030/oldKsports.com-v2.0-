@@ -3,6 +3,7 @@
 
 import { userAPI } from '../utils/api';
 import { INDUSTRY_ROLES, USER_LEVELS } from '../data/constants';
+import { debugLog } from '../utils/debug';
 
 type CachedUser = {
   id?: number; // 用户ID
@@ -58,7 +59,7 @@ function getCurrentUserId(): number | null {
 
 function ensureContainer() {
   if (!container) {
-    console.log('🔥 创建用户卡片容器');
+    debugLog('🔥 创建用户卡片容器');
     container = document.createElement('div');
     container.id = 'user-hover-card';
     container.style.position = 'fixed';
@@ -69,7 +70,7 @@ function ensureContainer() {
     container.style.transform = 'translateY(6px)';
     container.style.transition = 'opacity 120ms ease, transform 120ms ease';
     document.body.appendChild(container);
-    console.log('🔥 用户卡片容器已添加到DOM');
+    debugLog('🔥 用户卡片容器已添加到DOM');
   }
   return container;
 }
@@ -91,14 +92,14 @@ async function getUser(username: string, forceRefresh = false): Promise<CachedUs
     };
   }
   
-  console.log('🔥 getUser 被调用:', username, forceRefresh);
+  debugLog('🔥 getUser 被调用:', username, forceRefresh);
   const cached = cache.get(username);
   if (!forceRefresh && cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
-    console.log('🔥 命中缓存(有效期内):', username);
+    debugLog('🔥 命中缓存(有效期内):', username);
     return cached.data;
   }
   if (inFlight.has(username)) {
-    console.log('🔥 复用进行中的请求:', username);
+    debugLog('🔥 复用进行中的请求:', username);
     return inFlight.get(username)!;
   }
   const now = Date.now();
@@ -106,11 +107,11 @@ async function getUser(username: string, forceRefresh = false): Promise<CachedUs
   const waitMs = gap >= MIN_REQUEST_GAP_MS ? 0 : (MIN_REQUEST_GAP_MS - gap);
 
   try {
-    console.log('🔥 将在', waitMs, 'ms 后请求API:', username);
+    debugLog('🔥 将在', waitMs, 'ms 后请求API:', username);
     const p = (async () => {
       if (waitMs > 0) await new Promise(r => setTimeout(r, waitMs));
       lastNetworkAt = Date.now();
-      console.log('🔥 从API获取用户数据:', username);
+      debugLog('🔥 从API获取用户数据:', username);
       const info = await userAPI.getUserInfo(username);
       const user = info?.user as any;
         const data: CachedUser = {
@@ -126,7 +127,7 @@ async function getUser(username: string, forceRefresh = false): Promise<CachedUs
         console.log('API返回的用户数据:', user);
         console.log('解析后的roles:', user?.roles);
       cache.set(username, { data, fetchedAt: Date.now() });
-      console.log('🔥 用户数据已缓存:', data);
+      debugLog('🔥 用户数据已缓存:', data);
       return data;
     })();
     inFlight.set(username, p);
@@ -143,7 +144,7 @@ async function getUser(username: string, forceRefresh = false): Promise<CachedUs
 }
 
 function renderCard(user: CachedUser) {
-  console.log('🔥 renderCard 被调用:', user);
+  debugLog('🔥 renderCard 被调用:', user);
   const el = ensureContainer();
   const currentUserId = getCurrentUserId();
   const isSelf = typeof currentUserId === 'number' && typeof user.id === 'number' && currentUserId === user.id;
@@ -279,7 +280,7 @@ function renderCard(user: CachedUser) {
 }
 
 export async function showUserCard(username: string, anchorRect: DOMRect, forceRefresh = false) {
-  console.log('🔥 showUserCard 被调用:', username, anchorRect);
+  debugLog('🔥 showUserCard 被调用:', username, anchorRect);
   
   try {
     // 清除所有现有的定时器（改为意图延迟模型）
@@ -291,11 +292,11 @@ export async function showUserCard(username: string, anchorRect: DOMRect, forceR
     (window as any).userCardIsHovering = false;
 
     const data = await getUser(username, forceRefresh);
-    console.log('🔥 获取到用户数据:', data);
+    debugLog('🔥 获取到用户数据:', data);
     
     renderCard(data);
     const el = ensureContainer();
-    console.log('🔥 容器元素:', el);
+    debugLog('🔥 容器元素:', el);
     
     // 将函数暴露到全局，供HTML中的事件处理使用
     (window as any).forceHideUserCard = forceHideUserCard;
@@ -307,7 +308,7 @@ export async function showUserCard(username: string, anchorRect: DOMRect, forceR
     const top = anchorRect.top > el.offsetHeight + 20 ? idealTop : belowTop;
     const left = Math.min(window.innerWidth - el.offsetWidth - 10, Math.max(10, anchorRect.left));
     
-    console.log('🔥 设置位置:', { top, left, idealTop, belowTop });
+    debugLog('🔥 设置位置:', { top, left, idealTop, belowTop });
     
     el.style.left = `${left}px`;
     el.style.top = `${top}px`;
@@ -316,10 +317,10 @@ export async function showUserCard(username: string, anchorRect: DOMRect, forceR
     // 允许卡片接收鼠标事件以保持悬停
     el.style.pointerEvents = 'auto';
     
-    console.log('🔥 用户卡片已显示');
+    debugLog('🔥 用户卡片已显示');
     // 设置自动隐藏定时器（2秒后自动隐藏）
     intentTimer = setTimeout(() => {
-      console.log('🔥 自动隐藏定时器触发');
+      debugLog('🔥 自动隐藏定时器触发');
       softHideUserCard(0);
     }, 2000);
     // 将定时器暴露到全局，供HTML中的事件处理使用
@@ -381,13 +382,13 @@ export function forceHideUserCard() {
 
 // 设置全局聊天处理函数
 export function setChatHandler(handler: (user: { id: number; username: string; avatar?: string }) => void) {
-  console.log('🔥 setChatHandler 被调用:', handler);
+  debugLog('🔥 setChatHandler 被调用:', handler);
   (window as any).openChatWith = (target: { id: number; username: string; avatar?: string }) => {
-    console.log('🔥 window.openChatWith 被调用:', target);
+    debugLog('🔥 window.openChatWith 被调用:', target);
     const me = getCurrentUserId();
-    console.log('🔥 当前用户ID:', me);
+    debugLog('🔥 当前用户ID:', me);
     if (typeof me === 'number' && typeof target?.id === 'number' && me === target.id) {
-      console.log('🔥 阻止与自己聊天');
+      debugLog('🔥 阻止与自己聊天');
       return;
     }
     handler(target);
@@ -406,25 +407,25 @@ function findUsernameAnchor(target: EventTarget | null): HTMLElement | null {
 
 export function initUserHoverAutobind() {
   if (autoBindInited || typeof window === 'undefined' || typeof document === 'undefined') {
-    console.log('🔥 initUserHoverAutobind: 跳过初始化（已初始化或环境不支持）');
+    debugLog('🔥 initUserHoverAutobind: 跳过初始化（已初始化或环境不支持）');
     return;
   }
   autoBindInited = true;
-  console.log('🔥 initUserHoverAutobind: 开始绑定全局事件监听');
+  debugLog('🔥 initUserHoverAutobind: 开始绑定全局事件监听');
 
   // 改为点击触发
   document.addEventListener('click', (e) => {
-    console.log('🔥 全局点击事件触发:', e.target);
+    debugLog('🔥 全局点击事件触发:', e.target);
     const el = findUsernameAnchor(e.target);
     if (!el) {
-      console.log('🔥 未找到包含data-username的元素');
+      debugLog('🔥 未找到包含data-username的元素');
       return;
     }
     const username = el.getAttribute('data-username') || el.getAttribute('data-user');
-    console.log('🔥 找到用户头像:', username);
+    debugLog('🔥 找到用户头像:', username);
     if (!username) return;
     const rect = el.getBoundingClientRect();
-    console.log('🔥 调用showUserCard:', username, rect);
+    debugLog('🔥 调用showUserCard:', username, rect);
     showUserCard(username, rect);
   }, true);
 
@@ -434,12 +435,12 @@ export function initUserHoverAutobind() {
     const inCard = target.closest('#user-hover-card');
     const inAnchor = target.closest('[data-username], [data-user]');
     if (!inCard && !inAnchor) {
-      console.log('🔥 点击空白区域，隐藏卡片');
+      debugLog('🔥 点击空白区域，隐藏卡片');
       softHideUserCard(HIDE_DELAY_MS);
     }
   }, true);
   
-  console.log('🔥 全局事件监听绑定完成');
+  debugLog('🔥 全局事件监听绑定完成');
 }
 
 

@@ -1,8 +1,9 @@
 import React from 'react';
-import { showUserCard, hideUserCard } from './UserHoverCard';
+import { showUserCard } from './UserHoverCard';
 import { User } from 'lucide-react';
 import { useChat } from '../context/ChatContext';
 import { useAuth } from '../context/AuthContext';
+import { debugLog } from '../utils/debug';
 
 interface ClickableUserAvatarProps {
   userId: number;
@@ -55,11 +56,11 @@ const ClickableUserAvatar: React.FC<ClickableUserAvatarProps> = ({
     
     // 不能和自己聊天
     if (userId === user?.id) {
-      console.log('不能与自己聊天');
+      debugLog('不能与自己聊天');
       return;
     }
     
-    console.log('🔥 点击用户头像，开启聊天:', { userId, username });
+    debugLog('🔥 点击用户头像，开启聊天:', { userId, username });
     
     // 开启与该用户的聊天
     openChatWith({

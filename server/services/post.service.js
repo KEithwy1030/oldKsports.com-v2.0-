@@ -130,6 +130,52 @@ export const findPostById = (postId) => {
     });
 };
 
+export const findPostStats = () => {
+    return new Promise((resolve, reject) => {
+        const db = getDb();
+
+        const statsQuery = `
+            SELECT 
+                p.category,
+                COUNT(*) AS total_posts,
+                COALESCE(SUM(r.reply_count), 0) AS total_replies,
+                MAX(p.created_at) AS latest_post_time,
+                (
+                    SELECT title 
+                    FROM forum_posts 
+                    WHERE category = p.category 
+                    ORDER BY created_at DESC 
+                    LIMIT 1
+                ) AS latest_post_title
+            FROM forum_posts p
+            LEFT JOIN (
+                SELECT post_id, COUNT(*) AS reply_count
+                FROM forum_replies
+                GROUP BY post_id
+            ) r ON r.post_id = p.id
+            GROUP BY p.category`;
+
+        db.query(statsQuery, (err, results) => {
+            if (err) {
+                console.error('查询帖子统计信息失败:', err.message);
+                return reject(err);
+            }
+
+            const stats = {};
+            results.forEach(row => {
+                stats[row.category] = {
+                    totalPosts: row.total_posts || 0,
+                    totalReplies: row.total_replies || 0,
+                    latestPost: row.latest_post_title || '暂无帖子',
+                    latestPostTime: row.latest_post_time
+                };
+            });
+
+            resolve(stats);
+        });
+    });
+};
+
 export const createPost = async (postData, userId) => {
     try {
         // 验证必需参数

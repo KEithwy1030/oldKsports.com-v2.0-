@@ -155,3 +155,13 @@ export const addReply = async (req, res) => {
         return res.status(500).json(err);
     }
 };
+
+export const getPostStats = async (req, res) => {
+    try {
+        const stats = await PostService.findPostStats();
+        return res.status(200).json({ success: true, data: stats });
+    } catch (error) {
+        console.error('获取帖子统计信息失败:', error);
+        return res.status(500).json({ success: false, error: error.message || '获取帖子统计信息失败' });
+    }
+};

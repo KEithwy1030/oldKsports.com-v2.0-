@@ -3,6 +3,7 @@ import { MessageCircle, X, Send, Minimize2, Maximize2, User } from 'lucide-react
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { filterValidUsers, validateChatUser } from '../utils/userDataValidator';
+import { debugLog } from '../utils/debug';
 
 interface ChatMessage {
   id: number;
@@ -40,7 +41,7 @@ const ChatWidget: React.FC = () => {
     setChatUsers(prev => {
       const targetUser = prev.find(u => u.id === userId);
       if (targetUser && targetUser.unread_count > 0) {
-        console.log('🔥 清除用户未读数字:', targetUser.username, '数量:', targetUser.unread_count);
+        debugLog('🔥 清除用户未读数字:', targetUser.username, '数量:', targetUser.unread_count);
         
         // 清除该用户的未读数字（总数会在useEffect中自动重新计算）
         return prev.map(u => 
@@ -56,11 +57,11 @@ const ChatWidget: React.FC = () => {
   // 标记消息为已读
   const markMessagesAsRead = useCallback(async (userId: number) => {
     if (!userId) {
-      console.log('🔥 markMessagesAsRead: userId无效', userId);
+      debugLog('🔥 markMessagesAsRead: userId无效', userId);
       return;
     }
     
-    console.log('🔥 标记消息已读:', userId);
+    debugLog('🔥 标记消息已读:', userId);
     
     try {
       const apiUrl = import.meta.env.VITE_API_URL || '/api';
@@ -72,7 +73,7 @@ const ChatWidget: React.FC = () => {
       });
       
       // 已在selectUser中更新了本地状态
-      console.log('🔥 消息已标记为已读');
+      debugLog('🔥 消息已标记为已读');
     } catch (error) {
       console.error('标记已读失败:', error);
     }
@@ -90,7 +91,7 @@ const ChatWidget: React.FC = () => {
       });
       
       if (response.ok) {
-        console.log('🔥 所有消息已标记为已读');
+        debugLog('🔥 所有消息已标记为已读');
       }
     } catch (error) {
       console.error('标记所有消息已读失败:', error);
@@ -101,7 +102,7 @@ const ChatWidget: React.FC = () => {
   useEffect(() => {
     const total = chatUsers.reduce((sum, u) => sum + (u.unread_count || 0), 0);
     setTotalUnreadCount(total);
-    console.log('🔥 根据用户列表重新计算总未读数:', total);
+    debugLog('🔥 根据用户列表重新计算总未读数:', total);
   }, [chatUsers, setTotalUnreadCount]);
 
   // 同步外部选中的用户ID
@@ -115,7 +116,7 @@ const ChatWidget: React.FC = () => {
         setChatUsers(prev => {
           const existingUser = prev.find(u => u.id === selectedUserId);
           if (!existingUser) {
-            console.log('🔥 添加新用户到聊天列表:', selectedUserInfo);
+            debugLog('🔥 添加新用户到聊天列表:', selectedUserInfo);
             return [...prev, {
               id: selectedUserInfo.id,
               username: selectedUserInfo.username,
@@ -147,7 +148,7 @@ const ChatWidget: React.FC = () => {
       return;
     }
     
-    console.log('🔥 ChatWidget: 开始获取聊天用户，当前用户:', {
+    debugLog('🔥 ChatWidget: 开始获取聊天用户，当前用户:', {
       userId: user.id,
       username: user.username,
       userType: typeof user
@@ -164,17 +165,17 @@ const ChatWidget: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          console.log('🔥 获取到的聊天用户数据:', data.data);
+          debugLog('🔥 获取到的聊天用户数据:', data.data);
           
           // 过滤掉无效的用户数据
           const validUsers = filterValidUsers(data.data);
           
-          console.log('🔥 过滤后的有效用户:', validUsers);
+          debugLog('🔥 过滤后的有效用户:', validUsers);
           setChatUsers(validUsers);
           
           // 重新计算总未读数
           const total = validUsers.reduce((sum: number, u: any) => sum + (u.unread_count || 0), 0);
-          console.log('🔥 重新计算总未读数:', total);
+          debugLog('🔥 重新计算总未读数:', total);
           setTotalUnreadCount(total);
           
           // 如果没有选中用户且有聊天记录，选择第一个有效用户（避免无限循环）
@@ -183,7 +184,7 @@ const ChatWidget: React.FC = () => {
             const validUser = validUsers[0];
             
             if (validUser) {
-              console.log('🔥 自动选择第一个有效用户:', validUser);
+              debugLog('🔥 自动选择第一个有效用户:', validUser);
               // 直接设置，避免循环
               setLocalSelectedUserId(validUser.id);
             } else {
@@ -202,11 +203,11 @@ const ChatWidget: React.FC = () => {
   // 获取与特定用户的消息
   const fetchMessagesWithUser = useCallback(async (userId: number) => {
     if (!user || !userId) {
-      console.log('🔥 fetchMessagesWithUser: 用户或userId无效', { user: !!user, userId });
+      debugLog('🔥 fetchMessagesWithUser: 用户或userId无效', { user: !!user, userId });
       return;
     }
     
-    console.log('🔥 获取与用户的消息:', userId);
+    debugLog('🔥 获取与用户的消息:', userId);
     
     try {
       const apiUrl = import.meta.env.VITE_API_URL || '/api';
@@ -281,7 +282,7 @@ const ChatWidget: React.FC = () => {
 
   // 选择聊天用户
   const selectUser = useCallback((userId: number) => {
-    console.log('🔥 选择聊天用户:', userId, typeof userId);
+    debugLog('🔥 选择聊天用户:', userId, typeof userId);
     
     if (userId !== localSelectedUserId) {
       setLocalSelectedUserId(userId);
@@ -327,7 +328,7 @@ const ChatWidget: React.FC = () => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (isOpen && chatWidgetRef.current && !chatWidgetRef.current.contains(event.target as Node)) {
-        console.log('🔥 点击外部，关闭聊天框');
+        debugLog('🔥 点击外部，关闭聊天框');
         closeChat();
       }
     };
@@ -367,12 +368,12 @@ const ChatWidget: React.FC = () => {
         <div className="fixed bottom-6 right-6 z-50">
           <button
             onClick={() => {
-              console.log('🔥 点击消息图标，打开聊天框');
+              debugLog('🔥 点击消息图标，打开聊天框');
               toggleChat();
               
               // 打开聊天框时清除所有未读提醒
               if (totalUnreadCount > 0) {
-                console.log('🔥 清除所有未读消息提醒');
+                debugLog('🔥 清除所有未读消息提醒');
                 setTotalUnreadCount(0);
                 
                 // 清除所有用户的未读数字
