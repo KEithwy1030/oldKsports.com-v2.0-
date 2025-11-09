@@ -103,6 +103,10 @@ const UserProfile: React.FC = () => {
   const [showRoleEditor, setShowRoleEditor] = React.useState(false);
   const [selectedRoles, setSelectedRoles] = React.useState<string[]>([]);
   const [isSavingRoles, setIsSavingRoles] = React.useState(false);
+  const [isEditingUsername, setIsEditingUsername] = React.useState(false);
+  const [usernameInput, setUsernameInput] = React.useState('');
+  const [isSavingUsername, setIsSavingUsername] = React.useState(false);
+  const [usernameError, setUsernameError] = React.useState('');
   
   // 检测浏览器类型
   const isSogouBrowser = React.useMemo(() => {
@@ -115,6 +119,12 @@ const UserProfile: React.FC = () => {
       debugLog('检测到搜狗浏览器，启用兼容性模式');
     }
   }, [isSogouBrowser]);
+
+  React.useEffect(() => {
+    if (user?.username && !isEditingUsername) {
+      setUsernameInput(user.username);
+    }
+  }, [user?.username, isEditingUsername]);
 
   // 初始化selectedRoles - 确保始终是数组类型
   React.useEffect(() => {
@@ -479,6 +489,32 @@ const UserProfile: React.FC = () => {
     }
   };
 
+  const handleSaveUsername = async () => {
+    if (!user) return;
+    const trimmed = usernameInput.trim();
+    if (!trimmed) {
+      setUsernameError('用户名不能为空');
+      return;
+    }
+    if (trimmed === user.username) {
+      setIsEditingUsername(false);
+      setUsernameError('');
+      return;
+    }
+
+    setIsSavingUsername(true);
+    setUsernameError('');
+    try {
+      await updateUser({ username: trimmed });
+      setIsEditingUsername(false);
+    } catch (error) {
+      const message = handleApiError(error);
+      setUsernameError(message || '更新用户名失败，请稍后再试');
+    } finally {
+      setIsSavingUsername(false);
+    }
+  };
+
   const handleSaveRoles = async () => {
     if (!user) return;
     
@@ -774,11 +810,56 @@ const UserProfile: React.FC = () => {
             </div>
             
             <div className="flex-1">
-              <div className="flex items-center space-x-3 mb-2">
-                <h1 className="text-2xl font-bold text-on-surface">{user.username}</h1>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 mb-2 space-y-2 sm:space-y-0">
+                {isEditingUsername ? (
+                  <div className="flex items-center space-x-2">
+                    <input
+                      value={usernameInput}
+                      onChange={(e) => {
+                        setUsernameInput(e.target.value);
+                        if (usernameError) setUsernameError('');
+                      }}
+                      maxLength={32}
+                      className="px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+                    />
+                    <button
+                      onClick={handleSaveUsername}
+                      disabled={isSavingUsername}
+                      className="px-2.5 py-1 text-sm bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                    >
+                      {isSavingUsername ? '保存中...' : '保存'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsEditingUsername(false);
+                        setUsernameInput(user.username || '');
+                        setUsernameError('');
+                      }}
+                      className="px-2.5 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+                    >
+                      取消
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <h1 className="text-2xl font-bold text-on-surface">{user.username}</h1>
+                    <button
+                      onClick={() => {
+                        setUsernameInput(user.username || '');
+                        setIsEditingUsername(true);
+                      }}
+                      className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+                    >
+                      编辑用户名
+                    </button>
+                  </div>
+                )}
                 <UserLevelBadge level={user.level} />
               </div>
-              
+              {isEditingUsername && usernameError && (
+                <p className="text-xs text-red-500 mb-1">{usernameError}</p>
+              )}
+
               <p className="text-on-surface-variant mb-3">{user.email}</p>
               
               {/* User Roles */}
