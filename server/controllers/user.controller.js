@@ -9,8 +9,8 @@ import { getDb } from '../db.js';
  * @returns {string[]} 始终返回数组格式
  */
 function normalizeRoles(roles) {
-    // 如果为空，返回空数组
-    if (!roles) return [];
+    // 如果为空或为无效占位值，返回空数组
+    if (!roles || roles === 0 || roles === '0') return [];
     
     // 如果已经是数组，直接返回
     if (Array.isArray(roles)) {
@@ -303,6 +303,7 @@ export const getUserInfo = async (req, res) => {
         
         // 使用公共函数规范化 roles 字段
         const roles = normalizeRoles(user.roles);
+        const primaryRole = roles.length > 0 ? roles[0] : (user.role || '用户');
 
         // 优先使用 join_date（真实注册时间），如果没有则使用 created_at
         const joinDate = user.join_date || user.created_at;
@@ -316,7 +317,7 @@ export const getUserInfo = async (req, res) => {
                 points: user.points,
                 avatar: user.avatar,
                 hasUploadedAvatar: user.has_uploaded_avatar,
-                role: user.role || '用户',
+                role: primaryRole,
                 roles: roles, // 统一返回数组格式
                 level: level,
                 joinDate: joinDate
@@ -356,15 +357,19 @@ export const getTodayOnlineUsers = async (req, res) => {
         });
         
         // 规范化每个用户的 roles 字段（与 getUserInfo 保持一致）
-        const normalizedUsers = (rows || []).map(user => ({
-            id: user.id,
-            username: user.username,
-            avatar: user.avatar || null,
-            points: user.points || 0,
-            role: user.role || '用户',
-            roles: normalizeRoles(user.roles), // 使用公共函数统一处理
-            last_login: user.last_login
-        }));
+        const normalizedUsers = (rows || []).map(user => {
+            const normalizedRoles = normalizeRoles(user.roles);
+            const primaryRole = normalizedRoles.length > 0 ? normalizedRoles[0] : (user.role || '用户');
+            return {
+                id: user.id,
+                username: user.username,
+                avatar: user.avatar || null,
+                points: user.points || 0,
+                roles: normalizedRoles, // 使用公共函数统一处理
+                role: primaryRole,
+                last_login: user.last_login
+            };
+        });
         
         // 计算总数
         const countQuery = `
