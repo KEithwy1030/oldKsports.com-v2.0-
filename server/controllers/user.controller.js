@@ -334,8 +334,8 @@ export const getTodayOnlineUsers = async (req, res) => {
     try {
         const db = getDb();
         const currentUserId = req.user?.id || null;
-        const desiredMin = 10;
-        const desiredMax = 10;
+        const desiredMin = 20;
+        const desiredMax = 60;
         const desiredCount = Math.floor(Math.random() * (desiredMax - desiredMin + 1)) + desiredMin;
 
         const seenIds = new Set();
@@ -431,13 +431,13 @@ export const getTodayOnlineUsers = async (req, res) => {
         }
 
         // 保证不超过 desiredMax
-        const limitedUsers = formattedUsers.slice(0, desiredCount);
+        const limitedUsers = formattedUsers.slice(0, 10);
         
         res.json({
             success: true,
             data: {
                 users: limitedUsers,
-                totalOnline: limitedUsers.length
+                totalOnline: desiredCount
             }
         });
     } catch (error) {
