@@ -425,7 +425,7 @@ const Navigation: React.FC = () => {
                   {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </button>
                 <button
-                  onClick={handleAuthNavigation('/login')}
+                  onClick={() => handleAuthNavigation('/login')}
                   className="text-sm font-medium transition-colors text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                 >
                   登录
