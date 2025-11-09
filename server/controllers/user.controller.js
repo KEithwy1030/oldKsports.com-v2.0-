@@ -334,8 +334,8 @@ export const getTodayOnlineUsers = async (req, res) => {
     try {
         const db = getDb();
         const currentUserId = req.user?.id || null;
-        const desiredMin = 20;
-        const desiredMax = 60;
+        const desiredMin = 10;
+        const desiredMax = 10;
         const desiredCount = Math.floor(Math.random() * (desiredMax - desiredMin + 1)) + desiredMin;
 
         const seenIds = new Set();
