@@ -68,7 +68,12 @@ const AuthPage: React.FC<AuthPageProps> = ({ mode }) => {
       if (mode === 'register') {
         const validatedData = registerSchema.parse(formData);
         setIsLoading(true);
-        const success = await register(validatedData.username, validatedData.email, validatedData.password);
+        const success = await register(
+          validatedData.username,
+          validatedData.email,
+          validatedData.password,
+          formData.roles
+        );
         if (success) {
           setSuccess('注册成功！正在跳转...');
           setTimeout(() => navigate('/'), 1500);

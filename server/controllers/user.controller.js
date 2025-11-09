@@ -332,67 +332,112 @@ export const getUserInfo = async (req, res) => {
 // 获取今日在线用户列表
 export const getTodayOnlineUsers = async (req, res) => {
     try {
-        // 获取最近24小时内登录的用户（视为在线）
-        const query = `
-            SELECT 
-                id,
-                username,
-                avatar,
-                points,
-                role,
-                roles,
-                last_login
-            FROM users 
-            WHERE last_login IS NOT NULL 
-            AND TIMESTAMPDIFF(HOUR, last_login, NOW()) <= 24
-            ORDER BY last_login DESC
-            LIMIT 20
-        `;
-        
-        const rows = await new Promise((resolve, reject) => {
-            getDb().query(query, [], (err, results) => {
-                if (err) reject(err);
-                else resolve(results);
-            });
-        });
-        
-        // 规范化每个用户的 roles 字段（与 getUserInfo 保持一致）
-        const normalizedUsers = (rows || []).map(user => {
-            const normalizedRoles = normalizeRoles(user.roles);
-            const primaryRole = normalizedRoles.length > 0 ? normalizedRoles[0] : (user.role || '用户');
+        const db = getDb();
+        const currentUserId = req.user?.id || null;
+        const desiredMin = 20;
+        const desiredMax = 60;
+        const desiredCount = Math.floor(Math.random() * (desiredMax - desiredMin + 1)) + desiredMin;
+
+        const seenIds = new Set();
+        const formattedUsers = [];
+
+        const formatUser = (userRow) => {
+            if (!userRow) return null;
+            const normalizedRoles = normalizeRoles(userRow.roles);
+            const primaryRole = normalizedRoles.length > 0 ? normalizedRoles[0] : (userRow.role || '用户');
             return {
-                id: user.id,
-                username: user.username,
-                avatar: user.avatar || null,
-                points: user.points || 0,
-                roles: normalizedRoles, // 使用公共函数统一处理
+                id: userRow.id,
+                username: userRow.username,
+                avatar: userRow.avatar || null,
+                points: userRow.points || 0,
+                roles: normalizedRoles,
                 role: primaryRole,
-                last_login: user.last_login
+                last_login: userRow.last_login
             };
-        });
-        
-        // 计算总数
-        const countQuery = `
-            SELECT COUNT(*) AS total 
-            FROM users 
-            WHERE last_login IS NOT NULL 
-            AND TIMESTAMPDIFF(HOUR, last_login, NOW()) <= 24
-        `;
-        
-        const countRows = await new Promise((resolve, reject) => {
-            getDb().query(countQuery, [], (err, results) => {
-                if (err) reject(err);
-                else resolve(results);
+        };
+
+        // 当前用户信息
+        if (currentUserId) {
+            const currentRows = await new Promise((resolve, reject) => {
+                db.query(
+                    'SELECT id, username, avatar, points, role, roles, last_login FROM users WHERE id = ?',
+                    [currentUserId],
+                    (err, results) => err ? reject(err) : resolve(results || [])
+                );
             });
+            if (currentRows.length > 0) {
+                const currentFormatted = formatUser(currentRows[0]);
+                if (currentFormatted) {
+                    formattedUsers.push(currentFormatted);
+                    seenIds.add(currentFormatted.id);
+                }
+            }
+        }
+
+        // 最近登录的真实在线用户
+        const onlineRows = await new Promise((resolve, reject) => {
+            db.query(
+                `
+                SELECT id, username, avatar, points, role, roles, last_login
+                FROM users 
+                WHERE last_login IS NOT NULL
+                AND TIMESTAMPDIFF(HOUR, last_login, NOW()) <= 24
+                ${currentUserId ? 'AND id <> ?' : ''}
+                ORDER BY last_login DESC
+                LIMIT ?
+                `,
+                currentUserId ? [currentUserId, desiredMax] : [desiredMax],
+                (err, results) => err ? reject(err) : resolve(results || [])
+            );
         });
-        
-        const totalOnline = countRows[0]?.total || 0;
+
+        onlineRows.forEach((row) => {
+            if (seenIds.has(row.id)) return;
+            const formatted = formatUser(row);
+            if (formatted) {
+                formattedUsers.push(formatted);
+                seenIds.add(formatted.id);
+            }
+        });
+
+        // 如果数量不足，随机补充其它用户
+        if (formattedUsers.length < desiredCount) {
+            const remaining = desiredCount - formattedUsers.length;
+            if (remaining > 0) {
+                const fillerRows = await new Promise((resolve, reject) => {
+                    const placeholders = seenIds.size > 0 ? Array.from(seenIds) : [];
+                    db.query(
+                        `
+                        SELECT id, username, avatar, points, role, roles, last_login
+                        FROM users
+                        ${placeholders.length > 0 ? `WHERE id NOT IN (${placeholders.map(() => '?').join(',')})` : ''}
+                        ORDER BY RAND()
+                        LIMIT ?
+                        `,
+                        placeholders.length > 0 ? [...placeholders, remaining] : [remaining],
+                        (err, results) => err ? reject(err) : resolve(results || [])
+                    );
+                });
+
+                fillerRows.forEach((row) => {
+                    if (seenIds.has(row.id)) return;
+                    const formatted = formatUser(row);
+                    if (formatted) {
+                        formattedUsers.push(formatted);
+                        seenIds.add(formatted.id);
+                    }
+                });
+            }
+        }
+
+        // 保证不超过 desiredMax
+        const limitedUsers = formattedUsers.slice(0, desiredCount);
         
         res.json({
             success: true,
             data: {
-                users: normalizedUsers, // 返回规范化后的数据
-                totalOnline: totalOnline
+                users: limitedUsers,
+                totalOnline: limitedUsers.length
             }
         });
     } catch (error) {
