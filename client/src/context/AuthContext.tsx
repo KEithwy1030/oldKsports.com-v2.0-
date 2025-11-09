@@ -204,6 +204,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(processedUserData);
       setIsAuthenticated(true);
       
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('onboarding_relogin_flag', '1');
+          window.dispatchEvent(new Event('auth-success'));
+        } catch (eventError) {
+          console.warn('派发 auth-success 事件失败:', eventError);
+        }
+      }
+      
       // 清除用户卡片缓存，确保显示最新数据
       clearAllUserCache();
       
@@ -284,6 +293,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       setUser(processedUserData);
       setIsAuthenticated(true);
+      
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('onboarding_relogin_flag', '1');
+          window.dispatchEvent(new Event('auth-success'));
+        } catch (eventError) {
+          console.warn('派发 auth-success 事件失败:', eventError);
+        }
+      }
       
       // 清除用户卡片缓存，确保显示最新数据
       clearAllUserCache();

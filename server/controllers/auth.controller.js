@@ -52,6 +52,28 @@ export const register = async (req, res) => {
         if (newUsers.length > 0) {
             const newUserId = newUsers[0].id;
             
+            // 注册成功后立即记录 last_login，保证在线用户统计正常
+            try {
+                const db = getDb();
+                await new Promise((resolve, reject) => {
+                    db.query(
+                        'UPDATE users SET last_login = NOW() WHERE id = ?',
+                        [newUserId],
+                        (err) => {
+                            if (err) {
+                                console.error('更新注册用户 last_login 失败:', err);
+                                resolve();
+                            } else {
+                                resolve();
+                            }
+                        }
+                    );
+                });
+                newUsers[0].last_login = new Date();
+            } catch (lastLoginError) {
+                console.error('注册流程写入 last_login 异常:', lastLoginError);
+            }
+            
             // 创建系统欢迎通知
             try {
                 console.log('🔔 开始为新用户创建欢迎通知:', { newUserId, username });
@@ -115,7 +137,8 @@ export const register = async (req, res) => {
             hasUploadedAvatar: newUsers[0].has_uploaded_avatar || false,
             isAdmin: newUsers[0].is_admin || false,
             roles: roles || [],
-            joinDate: joinDate
+            joinDate: joinDate,
+            lastLogin: newUsers[0].last_login || new Date()
         };
         
         console.log('🔔 注册成功，返回用户数据:', userData);
