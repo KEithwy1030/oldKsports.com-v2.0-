@@ -12,12 +12,12 @@ export default defineConfig(({ mode }) => {
       strictPort: true, // 端口被占用时直接报错
       proxy: mode === 'development' ? {
         '/api': {
-          target: process.env.VITE_BACKEND_URL || `http://localhost:8080`, // 本地开发使用localhost:8080
+          target: process.env.VITE_BACKEND_URL || `http://127.0.0.1:8080`, // 本地开发使用本地后端
           changeOrigin: true,
           // 不重写路径，保持 /api 前缀
         },
         '/uploads': {
-          target: process.env.VITE_BACKEND_URL || `http://localhost:8080`, // 本地开发使用localhost:8080
+          target: process.env.VITE_BACKEND_URL || `http://127.0.0.1:8080`, // 本地开发使用本地后端
           changeOrigin: true,
           // 不重写路径，保持 /uploads 前缀
         },

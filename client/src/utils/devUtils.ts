@@ -1,5 +1,6 @@
 // 开发环境工具函数，用于验证API配置
 import { debugLog } from './debug';
+import { API_CONFIG } from '../config/api.config';
 
 export const validateApiConfig = () => {
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -32,7 +33,7 @@ export const validateApiConfig = () => {
 
 export const testApiConnection = async () => {
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/health`);
+    const response = await fetch(`${API_CONFIG.BASE_URL}/health`);
     const data = await response.json();
     debugLog('✅ API Health Check:', data.status);
   } catch (error) {

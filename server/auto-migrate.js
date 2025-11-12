@@ -70,6 +70,28 @@ async function checkTablesExist(db) {
 
 // 兼容性迁移：只在现有表中添加字段
 async function compatibilityMigration(db) {
+    // 兼容：blacklist 表缺失字段自动补齐
+    const ensureColumn = async (table, column, ddl) => {
+        await new Promise((resolve) => {
+            db.query(`
+                SELECT COUNT(*) as count
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = ?
+                  AND COLUMN_NAME = ?
+            `, [table, column], (err, results) => {
+                if (err) { console.warn(`[auto-migrate] 检查列失败 ${table}.${column}:`, err.message); return resolve(); }
+                const exists = results?.[0]?.count > 0;
+                if (exists) return resolve();
+                db.query(`ALTER TABLE ${table} ${ddl}`, (alterErr) => {
+                    if (alterErr) console.warn(`[auto-migrate] 添加列失败 ${table}.${column}:`, alterErr.message);
+                    else console.log(`[auto-migrate] 已添加 ${table}.${column}`);
+                    resolve();
+                });
+            });
+        });
+    };
+
     // 检查并添加 last_login 字段
     await new Promise((resolve, reject) => {
         db.query(`
@@ -109,27 +131,11 @@ async function compatibilityMigration(db) {
         });
     });
 
-    // 兼容：blacklist 表缺失字段自动补齐
-    const ensureColumn = async (table, column, ddl) => {
-        await new Promise((resolve) => {
-            db.query(`
-                SELECT COUNT(*) as count
-                FROM INFORMATION_SCHEMA.COLUMNS
-                WHERE TABLE_SCHEMA = DATABASE()
-                  AND TABLE_NAME = ?
-                  AND COLUMN_NAME = ?
-            `, [table, column], (err, results) => {
-                if (err) { console.warn(`[auto-migrate] 检查列失败 ${table}.${column}:`, err.message); return resolve(); }
-                const exists = results?.[0]?.count > 0;
-                if (exists) return resolve();
-                db.query(`ALTER TABLE ${table} ${ddl}`, (alterErr) => {
-                    if (alterErr) console.warn(`[auto-migrate] 添加列失败 ${table}.${column}:`, alterErr.message);
-                    else console.log(`[auto-migrate] 已添加 ${table}.${column}`);
-                    resolve();
-                });
-            });
-        });
-    };
+    // 检查并添加 register_ip 字段
+    await ensureColumn('users', 'register_ip', 'ADD COLUMN register_ip VARCHAR(45) NULL DEFAULT NULL AFTER last_login');
+    
+    // 检查并添加 last_login_ip 字段
+    await ensureColumn('users', 'last_login_ip', 'ADD COLUMN last_login_ip VARCHAR(45) NULL DEFAULT NULL AFTER register_ip');
 
     await ensureColumn('blacklist', 'report_source', "ADD COLUMN report_source ENUM('user','platform') DEFAULT 'user' AFTER evidence_urls");
     await ensureColumn('blacklist', 'updated_at', 'ADD COLUMN updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP AFTER created_at');

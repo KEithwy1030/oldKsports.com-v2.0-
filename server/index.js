@@ -69,7 +69,14 @@ if (process.env.CUSTOM_DOMAIN) {
 
 // 本地开发环境支持
 if (process.env.NODE_ENV === 'development') {
-  corsOrigins.push("http://localhost:5173", "http://localhost:3000");
+  corsOrigins.push(
+    "http://localhost:5173",
+    "http://localhost:4173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:4173",
+    "http://127.0.0.1:3000"
+  );
 }
 
 console.log('CORS Origins:', corsOrigins);

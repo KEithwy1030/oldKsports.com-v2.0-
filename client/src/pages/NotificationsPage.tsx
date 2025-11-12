@@ -4,6 +4,7 @@ import { ArrowLeft, MessageCircle, AtSign, AlertCircle, Bell, Trash2, ExternalLi
 import { useAuth } from '../context/AuthContext';
 import PageTransition from '../components/PageTransition';
 import { debugLog } from '../utils/debug';
+import { API_CONFIG } from '../config/api.config';
 
 interface Notification {
   id: number;
@@ -43,7 +44,7 @@ const NotificationsPage: React.FC = () => {
     if (!user) return;
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const apiUrl = API_CONFIG.BASE_URL;
       const url = type && type !== 'all' 
         ? `${apiUrl}/notifications/list?type=${type}` 
         : `${apiUrl}/notifications/list`;
@@ -103,7 +104,7 @@ const NotificationsPage: React.FC = () => {
   // 标记单个通知为已读
   const markAsRead = async (notificationId: number) => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const apiUrl = API_CONFIG.BASE_URL;
       const response = await fetch(`${apiUrl}/notifications/mark-read`, {
         method: 'PUT',
         headers: {
@@ -126,7 +127,7 @@ const NotificationsPage: React.FC = () => {
   // 删除通知
   const deleteNotification = async (notificationId: number) => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const apiUrl = API_CONFIG.BASE_URL;
       const response = await fetch(`${apiUrl}/notifications/${notificationId}`, {
         method: 'DELETE',
         headers: {

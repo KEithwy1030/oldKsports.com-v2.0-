@@ -41,6 +41,11 @@ router.get('/dashboard/stats', authenticateToken, requireAdmin, async (req, res)
     const replyStats = await dbQuery('SELECT COUNT(*) as total_replies FROM forum_replies');
 
     // 今日新增统计
+    const todayUsers = await dbQuery(
+      `SELECT COUNT(*) as today_users 
+       FROM users 
+       WHERE DATE(COALESCE(join_date, created_at)) = CURDATE()`
+    );
     const todayPosts = await dbQuery("SELECT COUNT(*) as today_posts FROM forum_posts WHERE DATE(created_at) = CURDATE()");
     const todayReplies = await dbQuery("SELECT COUNT(*) as today_replies FROM forum_replies WHERE DATE(created_at) = CURDATE()");
 
@@ -59,6 +64,7 @@ router.get('/dashboard/stats', authenticateToken, requireAdmin, async (req, res)
         totalPosts: (postStats?.[0]?.total_posts) || 0,
         totalReplies: (replyStats?.[0]?.total_replies) || 0,
         onlineUsers,
+        todayUsers: (todayUsers?.[0]?.today_users) || 0,
         todayPosts: (todayPosts?.[0]?.today_posts) || 0,
         todayReplies: (todayReplies?.[0]?.today_replies) || 0,
         // 预留增长数据结构，前端做了 length 判断
@@ -167,7 +173,19 @@ router.get('/system/status', authenticateToken, requireAdmin, async (req, res) =
 router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const users = await dbQuery(`
-      SELECT id, username, email, points, is_admin, created_at, join_date, last_login 
+      SELECT 
+        id, 
+        username, 
+        email, 
+        points, 
+        is_admin, 
+        avatar, 
+        has_uploaded_avatar, 
+        created_at, 
+        join_date, 
+        last_login,
+        register_ip,
+        last_login_ip
       FROM users 
       ORDER BY COALESCE(join_date, created_at) DESC
     `);

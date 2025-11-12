@@ -1,9 +1,11 @@
 // 统一的API配置文件
 import { debugLog } from '../utils/debug';
 
+const DEFAULT_API_BASE = 'http://127.0.0.1:8080/api';
+
 export const API_CONFIG = {
-  // 后端基础URL（生产环境使用环境变量，开发环境使用代理）
-  BASE_URL: import.meta.env.VITE_API_URL || '/api',
+  // 后端基础URL（生产环境使用环境变量，开发环境使用默认本地地址）
+  BASE_URL: import.meta.env.VITE_API_URL || DEFAULT_API_BASE,
   
   // API端点（不带/api前缀，因为BASE_URL已经包含）
   ENDPOINTS: {
@@ -39,6 +41,7 @@ if (import.meta.env.DEV) {
   debugLog('🔍 API Config:', {
     BASE_URL: API_CONFIG.BASE_URL,
     VITE_API_URL: import.meta.env.VITE_API_URL,
+    DEFAULT_API_BASE,
     env: import.meta.env.MODE
   });
 }

@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import { NotificationService } from '../services/notification.service.js';
 import { addUserLevel } from '../utils/userLevel.js';
 import { getDb } from '../db.js';
+import { getClientIp } from '../utils/getClientIp.js';
 
 dotenv.config();
 
@@ -44,8 +45,11 @@ export const register = async (req, res) => {
         const salt = bcrypt.genSaltSync(10);
         const hash = bcrypt.hashSync(password, salt);
         
+        // 获取客户端IP地址
+        const clientIp = getClientIp(req);
+        
         // Create user with email and roles
-        await createUser(username, email, hash, roles);
+        await createUser(username, email, hash, roles, clientIp);
         
         // 获取新创建用户的ID
         const newUsers = await findUserByUsername(username);
@@ -214,21 +218,35 @@ export const login = async (req, res) => {
             tokenLength: token.length 
         });
         
-        // 2.0版本：更新last_login字段
+        // 2.0版本：更新last_login和last_login_ip字段
+        let updatedLastLogin = null;
         try {
             const db = getDb();
+            // 获取客户端IP地址
+            const clientIp = getClientIp(req);
+            // 更新last_login和last_login_ip并获取更新后的时间
             await new Promise((resolve, reject) => {
                 db.query(
-                    'UPDATE users SET last_login = NOW() WHERE id = ?',
-                    [user.id],
+                    'UPDATE users SET last_login = NOW(), last_login_ip = ? WHERE id = ?',
+                    [clientIp, user.id],
                     (err, results) => {
                         if (err) {
                             console.error('更新last_login失败:', err);
                             // 不阻止登录，只记录错误
                             resolve();
                         } else {
-                            console.log('✅ last_login已更新:', user.id);
-                            resolve();
+                            console.log('✅ last_login和last_login_ip已更新:', user.id, clientIp);
+                            // 获取更新后的last_login
+                            db.query(
+                                'SELECT last_login FROM users WHERE id = ?',
+                                [user.id],
+                                (err2, results2) => {
+                                    if (!err2 && results2.length > 0) {
+                                        updatedLastLogin = results2[0].last_login;
+                                    }
+                                    resolve();
+                                }
+                            );
                         }
                     }
                 );
@@ -240,6 +258,10 @@ export const login = async (req, res) => {
         
         // Remove sensitive data and add user level
         const { password: _, ...userData } = user;
+        // 使用更新后的last_login（如果更新成功）
+        if (updatedLastLogin) {
+            userData.last_login = updatedLastLogin;
+        }
         const userWithLevel = addUserLevel(userData);
         
         // Set cookie and return user data

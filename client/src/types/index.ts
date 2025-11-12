@@ -5,7 +5,7 @@ export interface User {
   points: number;
   level: UserLevel;
   joinDate: Date;
-  lastLogin: Date;
+  lastLogin?: Date | null;
   avatar?: string;
   isAdmin?: boolean;
   roles: string[];
@@ -13,6 +13,7 @@ export interface User {
   password?: string;
   isBot?: boolean;
   consecutiveCheckins?: number;
+  ipAddress?: string; // IP地址（优先显示last_login_ip，如果没有则显示register_ip）
 }
 
 export interface UserLevel {

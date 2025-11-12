@@ -27,6 +27,7 @@ import { getUserLevel } from '../utils/userUtils';
 import { INDUSTRY_ROLES } from '../data/constants';
 
 const AdminPage: React.FC = () => {
+  console.log('🔍 [AdminPage] 组件渲染');
   const { user, getBotAccounts, addBotAccounts, updateBotAccount, getForumPosts } = useAuth();
   const [activeTab, setActiveTab] = useState<'users' | 'bots' | 'merchants' | 'blacklist'>('users');
   const [createdAccounts, setCreatedAccounts] = useState<any[]>([]);
@@ -62,58 +63,80 @@ const AdminPage: React.FC = () => {
     return fetch(input, { ...init, headers, credentials: 'include' });
   };
 
-  // 加载所有用户数据和网站统计
-  useEffect(() => {
-    loadAllUsers();
-    loadWebsiteStats();
-    
-    const bots = getBotAccounts();
-    setCreatedAccounts(bots);
-  }, [getBotAccounts]);
-
   // 加载所有用户数据
   const loadAllUsers = async () => {
+    console.log('🔍 [AdminPage] loadAllUsers 开始执行');
     try {
-      // 优先从后端获取真实数据
-      const res = await authFetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/users`);
+      const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/admin/users`;
+      console.log('🔍 [AdminPage] 请求URL:', apiUrl);
+      const res = await authFetch(apiUrl);
+      console.log('🔍 [AdminPage] API响应状态:', res.status, res.ok);
+      
       if (res.ok) {
         const data = await res.json();
+        console.log('🔍 [AdminPage] API返回数据:', data);
+        console.log('🔍 [AdminPage] data.success:', data.success, 'data.data是数组:', Array.isArray(data.data));
         if (data.success && Array.isArray(data.data)) {
+          console.log('🔍 [AdminPage] 用户数量:', data.data.length);
+          if (data.data.length > 0) {
+            console.log('🔍 [AdminPage] 第一个用户数据:', data.data[0]);
+            console.log('🔍 [AdminPage] 第一个用户的last_login:', data.data[0].last_login);
+            console.log('🔍 [AdminPage] 第一个用户的points:', data.data[0].points, '类型:', typeof data.data[0].points);
+          }
           const usersFromApi: User[] = data.data.map((u: any) => {
-            const points = u.points || 0;
+            // 确保points是数字类型，处理null、undefined、字符串等情况
+            let points = 0;
+            if (u.points !== null && u.points !== undefined) {
+              const parsedPoints = typeof u.points === 'string' ? parseInt(u.points, 10) : Number(u.points);
+              points = isNaN(parsedPoints) ? 0 : parsedPoints;
+            }
             const level = getUserLevel(points);
-            const lastLogin = u.last_login ? new Date(u.last_login) : null;
-            const isOnline = lastLogin ? (Date.now() - lastLogin.getTime()) <= 10 * 60 * 1000 : false;
+            
+            // 处理 last_login 字段
+            let lastLogin: Date | null = null;
+            if (u.last_login) {
+              const dateValue = new Date(u.last_login);
+              if (!isNaN(dateValue.getTime())) {
+                lastLogin = dateValue;
+              }
+            }
+            
             return {
               id: u.id,
               username: u.username,
               email: u.email,
               points,
               level,
-              // 优先使用 join_date（真实注册时间），如果没有则使用 created_at
               joinDate: u.join_date ? new Date(u.join_date) : (u.created_at ? new Date(u.created_at) : new Date()),
               hasUploadedAvatar: !!u.avatar,
               avatar: u.avatar || null,
               isAdmin: !!u.is_admin,
-              // 兼容现有表格字段
-              lastLogin: lastLogin || undefined,
-              isOnline: isOnline as any
-            } as unknown as User;
+              roles: u.roles || [],
+              lastLogin: lastLogin,
+              ipAddress: u.last_login_ip || u.register_ip || '未知'
+            } as User;
           });
+          
+          console.log('🔍 [AdminPage] 处理后的用户数据数量:', usersFromApi.length);
+          console.log('🔍 [AdminPage] 第一个处理后的用户:', usersFromApi[0]);
           setAllUsers(usersFromApi);
           setFilteredUsers(usersFromApi);
+          console.log('🔍 [AdminPage] 状态已更新，allUsers和filteredUsers已设置');
           return;
+        } else {
+          console.warn('🔍 [AdminPage] API返回数据格式不正确:', data);
         }
+      } else {
+        console.warn('🔍 [AdminPage] API请求失败，状态码:', res.status);
       }
-      console.warn('获取后端用户失败，使用本地回退数据');
     } catch (e) {
-      console.warn('获取后端用户异常，使用本地回退数据:', e);
+      console.error('🔍 [AdminPage] 获取用户列表失败:', e);
     }
 
-    // 回退：旧的本地组合数据
+    // 回退数据
     const botAccounts = getBotAccounts();
-    const mockUsersData = mockUsers.filter(u => u.username !== 'oldk'); // 排除当前管理员
-    const registeredUsers = getRegisteredUsers(); // 获取注册用户
+    const mockUsersData = mockUsers.filter(u => u.username !== 'oldk');
+    const registeredUsers = getRegisteredUsers();
     const combinedUsers = [...mockUsersData, ...botAccounts, ...registeredUsers];
     setAllUsers(combinedUsers);
     setFilteredUsers(combinedUsers);
@@ -127,39 +150,48 @@ const AdminPage: React.FC = () => {
     return registeredUsers;
   };
 
+  // 加载所有用户数据和网站统计
+  useEffect(() => {
+    console.log('🔍 [AdminPage] useEffect 执行，开始加载用户数据');
+    loadAllUsers();
+    loadWebsiteStats();
+    
+    const bots = getBotAccounts();
+    setCreatedAccounts(bots);
+  }, []); // 移除依赖项，确保只在组件挂载时执行一次
+
   // 加载网站统计数据
   const loadWebsiteStats = async () => {
-    const botAccounts = getBotAccounts();
-    
-    // 计算今日新增用户（模拟数据）
-    const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const dailyNewUsers = botAccounts.filter(bot => 
-      bot.joinDate && new Date(bot.joinDate) >= todayStart
-    ).length;
-    
-    // 计算在线用户数（模拟数据，实际应该基于最后活跃时间）
-    const onlineUsers = Math.floor(botAccounts.length * 0.3) + 1; // 假设30%的机器人在线 + 管理员
-    
     try {
-      const forumPosts = await getForumPosts();
+      const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/admin/dashboard/stats`;
+      const res = await authFetch(apiUrl);
       
-      // 计算今日新帖
-      const dailyNewPosts = Array.isArray(forumPosts) ? forumPosts.filter(post => 
-        new Date(post.timestamp) >= todayStart
-      ).length : 0;
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.data) {
+          setWebsiteStats({
+            dailyNewUsers: data.data.todayUsers || 0,
+            onlineUsers: data.data.onlineUsers || 0,
+            totalPosts: data.data.totalPosts || 0,
+            dailyNewPosts: data.data.todayPosts || 0
+          });
+          return;
+        }
+      }
       
+      // 如果API请求失败，使用默认值
+      console.warn('获取网站统计数据失败，使用默认值');
       setWebsiteStats({
-        dailyNewUsers,
-        onlineUsers,
-        totalPosts: Array.isArray(forumPosts) ? forumPosts.length : 0,
-        dailyNewPosts
+        dailyNewUsers: 0,
+        onlineUsers: 0,
+        totalPosts: 0,
+        dailyNewPosts: 0
       });
     } catch (error) {
-      console.error('Failed to load forum posts:', error);
+      console.error('加载网站统计数据失败:', error);
       setWebsiteStats({
-        dailyNewUsers,
-        onlineUsers,
+        dailyNewUsers: 0,
+        onlineUsers: 0,
         totalPosts: 0,
         dailyNewPosts: 0
       });
@@ -413,149 +445,88 @@ const AdminPage: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-on-surface">用户管理</h2>
-                <div className="flex items-center space-x-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-on-surface-tertiary" size={20} />
-                    <input
-                      type="text"
-                      placeholder="搜索用户..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 pr-4 py-2 bg-surface-variant/10 border border-surface/30 rounded-lg text-on-surface placeholder-on-surface-tertiary w-64"
-                    />
-                  </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-on-surface-tertiary" size={20} />
+                  <input
+                    type="text"
+                    placeholder="搜索用户..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 pr-4 py-2 bg-surface-variant/10 border border-surface/30 rounded-lg text-on-surface placeholder-on-surface-tertiary w-64"
+                  />
                 </div>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-white/20">
+                <table className="w-full">
                   <thead>
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                        用户信息
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                        邮箱
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                        IP地址
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                        积分/等级
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                        注册时间
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                        状态
-                      </th>
+                    <tr className="border-b border-surface/20">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">用户信息</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">邮箱</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">IP地址</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">积分/等级</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">注册时间</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">最后登录</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">状态</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-surface/10">
-                    {filteredUsers.map((user) => (
-                      <tr key={user.id} className="hover:bg-surface-variant/5">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                  <tbody>
+                    {(() => {
+                      console.log('🔍 [AdminPage] 渲染表格，filteredUsers.length:', filteredUsers.length, 'allUsers.length:', allUsers.length);
+                      if (filteredUsers.length > 0) {
+                        return filteredUsers.map((user) => (
+                      <tr key={user.id} className="border-b border-surface/10 hover:bg-surface-variant/5">
+                        <td className="px-4 py-4">
                           <div className="flex items-center space-x-3">
-                            <div 
-                              className="w-10 h-10 bg-emerald-600/20 rounded-full flex items-center justify-center border border-emerald-500/30 cursor-pointer"
-                              onMouseOver={(e) => {
-                                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                (e.currentTarget as any).__hoverTimer = setTimeout(() => {
-                                  showUserCard(user.username, rect);
-                                }, 500);
-                              }}
-                              onMouseOut={(e) => {
-                                if ((e.currentTarget as any).__hoverTimer) {
-                                  clearTimeout((e.currentTarget as any).__hoverTimer);
-                                  (e.currentTarget as any).__hoverTimer = null;
-                                }
-                                hideUserCard(120);
-                              }}
-                            >
+                            <div className="w-10 h-10 bg-emerald-600/20 rounded-full flex items-center justify-center border border-emerald-500/30">
                               {user.hasUploadedAvatar && user.avatar ? (
-                                <img 
-                                  src={user.avatar} 
-                                  alt={user.username}
-                                  className="w-10 h-10 rounded-full object-cover"
-                                  key={user.avatar + Date.now()} // 添加时间戳强制重新渲染
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = 'none';
-                                  }}
-                                />
+                                <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full object-cover" />
                               ) : (
-                                <span className="text-emerald-400 text-sm font-semibold">
-                                  {user.username?.charAt(0) || 'U'}
-                                </span>
+                                <span className="text-emerald-400 text-sm font-semibold">{user.username?.charAt(0) || 'U'}</span>
                               )}
                             </div>
                             <div>
-                              <span className="text-on-surface font-medium">
-                                {user.username || '未知用户'}
-                              </span>
+                              <div className="text-on-surface font-medium">{user.username || '未知用户'}</div>
                               <div className="text-xs text-on-surface-tertiary">ID: {user.id}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-on-surface-variant">
-                          {user.email}
+                        <td className="px-4 py-4 text-on-surface-variant text-sm">{user.email}</td>
+                        <td className="px-4 py-4 text-on-surface-variant text-sm">{user.ipAddress || '未知'}</td>
+                        <td className="px-4 py-4">
+                          <div className="text-emerald-400 font-medium">{user.points} 积分</div>
+                          <span className="inline-block px-2 py-1 rounded-full text-xs font-medium mt-1" style={{ backgroundColor: `${user.level?.color}20`, color: user.level?.color }}>
+                            {user.level.name}
+                          </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-on-surface-variant">
-                          <div className="flex items-center space-x-2">
-                            <Globe className="w-4 h-4 text-on-surface-tertiary" />
-                            <span className="font-mono text-sm">
-                              {typeof user.id === 'string' && (user.id as string).startsWith('bot_') ? '192.168.1.' + Math.floor(Math.random() * 255) : '127.0.0.1'}
-                            </span>
-                          </div>
+                        <td className="px-4 py-4 text-on-surface-variant text-sm">{new Date(user.joinDate).toLocaleDateString('zh-CN')}</td>
+                        <td className="px-4 py-4 text-on-surface-variant text-sm">
+                          {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString('zh-CN') : <span className="text-on-surface-tertiary italic">从未登录</span>}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-emerald-400 font-medium">{user.points} 积分</div>
-                            <span 
-                              className="inline-block px-2 py-1 rounded-full text-xs font-medium mt-1"
-                              style={{ backgroundColor: `${user.level?.color}20`, color: user.level?.color }}
-                            >
-                              {user.level.name}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-on-surface-variant text-sm">
-                          {new Date(user.joinDate).toLocaleDateString('zh-CN')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center space-x-2">
-                            {user.isAdmin ? (
-                              <span className="px-2 py-1 bg-red-500/20 text-red-300 rounded-full text-xs font-medium">
-                                管理员
-                              </span>
-                            ) : (typeof user.id === 'string' && (user.id as string).startsWith('bot_')) ? (
-                              <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full text-xs font-medium">
-                                机器人
-                              </span>
-                            ) : (
-                              <span className="px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded-full text-xs font-medium">
-                                普通用户
-                              </span>
-                            )}
-                            <div className={`w-2 h-2 rounded-full ${
-                              (user as any).isOnline ? 'bg-emerald-400' : 'bg-gray-500'
-                            }`}></div>
-                          </div>
+                        <td className="px-4 py-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            user.isAdmin ? 'bg-red-500/20 text-red-300' : 
+                            (typeof user.id === 'string' && (user.id as string).startsWith('bot_')) ? 'bg-blue-500/20 text-blue-300' : 
+                            'bg-emerald-500/20 text-emerald-300'
+                          }`}>
+                            {user.isAdmin ? '管理员' : (typeof user.id === 'string' && (user.id as string).startsWith('bot_')) ? '机器人' : '普通用户'}
+                          </span>
                         </td>
                       </tr>
-                    ))}
+                        ));
+                      } else {
+                        return (
+                      <tr>
+                        <td colSpan={7} className="text-center py-8 text-on-surface-tertiary">
+                          {searchTerm ? '没有找到匹配的用户' : '暂无用户数据'}
+                        </td>
+                      </tr>
+                        );
+                      }
+                    })()}
                   </tbody>
                 </table>
               </div>
-
-              {filteredUsers.length === 0 && (
-                <div className="text-center py-12">
-                  <Users className="w-16 h-16 text-on-surface-tertiary mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-on-surface mb-2">暂无用户数据</h3>
-                  <p className="text-on-surface-variant">
-                    {searchTerm ? '没有找到匹配的用户' : '开始创建机器人账号来添加用户'}
-                  </p>
-                </div>
-              )}
             </div>
           )}
 

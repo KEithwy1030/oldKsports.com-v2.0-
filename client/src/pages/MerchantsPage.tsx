@@ -6,6 +6,7 @@ import PageTransition from '../components/PageTransition';
 import { Merchant } from '../types';
 import { getSystemAvatar } from '../components/SystemAvatars';
 import { debugLog } from '../utils/debug';
+import { API_CONFIG } from '../config/api.config';
 
 const MerchantsPage: React.FC = () => {
   const { user } = useAuth();
@@ -18,7 +19,7 @@ const MerchantsPage: React.FC = () => {
     const fetchMerchants = async () => {
       try {
         // 使用公开的商家API端点，不需要管理员权限
-        const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/merchants`);
+        const response = await fetch(`${API_CONFIG.BASE_URL}/merchants`);
         if (response.ok) {
           const data = await response.json();
           if (data.success) {

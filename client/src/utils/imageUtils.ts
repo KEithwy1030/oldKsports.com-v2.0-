@@ -2,6 +2,7 @@
 // 支持本地开发和生产环境
 
 import { debugLog } from './debug';
+import { API_CONFIG } from '../config/api.config';
 
 /**
  * 构建图片URL
@@ -31,7 +32,7 @@ export const buildImageUrl = (imagePath: string): string => {
     return imagePath;
   }
 
-  const apiUrl = import.meta.env.VITE_API_URL || '/api';
+  const apiUrl = import.meta.env.VITE_API_URL || API_CONFIG.BASE_URL;
   const baseUrl = apiUrl.startsWith('http') ? apiUrl.replace('/api', '') : (import.meta.env.PROD ? 'https://oldksports.com' : (import.meta.env.VITE_API_BASE_URL || window.location.origin));
 
   // 如果已经是完整URL，做兼容性规范化
@@ -76,7 +77,7 @@ export const buildImageUrl = (imagePath: string): string => {
   // 本地开发环境：API URL是 /api，需要替换为后端地址
   if (apiUrl === '/api') {
     // 本地开发时，使用环境变量或默认后端地址
-    const backendUrl = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000');
+    const backendUrl = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://127.0.0.1:8080');
     const result = `${backendUrl}${normalizedPath}`;
     debugLog('🖼️ 本地开发URL:', result);
     return result;
@@ -100,7 +101,7 @@ export const buildImageUrl = (imagePath: string): string => {
  * @returns 图片上传的完整URL
  */
 export const buildUploadUrl = (): string => {
-  const apiUrl = import.meta.env.VITE_API_URL || '/api';
+  const apiUrl = import.meta.env.VITE_API_URL || API_CONFIG.BASE_URL;
   return `${apiUrl}/upload/images`;
 };
 

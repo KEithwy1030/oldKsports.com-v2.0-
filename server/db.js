@@ -21,7 +21,7 @@ const defaultConfig = {
   MYSQL_HOST: 'localhost',
   MYSQL_USERNAME: 'root',
   MYSQL_PASSWORD: 'k19941030',
-  MYSQL_DATABASE: 'old_k_sports',
+  MYSQL_DATABASE: 'oldksports',
   MYSQL_PORT: '3306'
 };
 

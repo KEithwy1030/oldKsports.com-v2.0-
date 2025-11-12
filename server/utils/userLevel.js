@@ -29,6 +29,8 @@ export const addUserLevel = (user) => {
     level: getUserLevel(user.points),
     // 确保字段映射正确
     isAdmin: user.is_admin || user.isAdmin || false,
-    joinDate: joinDate
+    joinDate: joinDate,
+    // 保留last_login字段
+    lastLogin: user.last_login || user.lastLogin || null
   };
 };

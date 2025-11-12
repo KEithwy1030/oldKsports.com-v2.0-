@@ -136,7 +136,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...userData,
           isAdmin: userData.is_admin || userData.isAdmin || false,
           hasUploadedAvatar: userData.has_uploaded_avatar || userData.hasUploadedAvatar || false,
-          joinDate: userData.joinDate ? new Date(userData.joinDate) : (userData.created_at ? new Date(userData.created_at) : new Date())
+          joinDate: userData.joinDate ? new Date(userData.joinDate) : (userData.created_at ? new Date(userData.created_at) : new Date()),
+          lastLogin: userData.lastLogin || userData.last_login ? new Date(userData.lastLogin || userData.last_login) : null
         };
         
         debugLog('AuthContext初始化 - 从localStorage加载用户数据:', userData);
@@ -183,7 +184,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...userData,
         isAdmin: userData.isAdmin || false,
         hasUploadedAvatar: userData.hasUploadedAvatar || false,
-        joinDate: userData.joinDate ? new Date(userData.joinDate) : (userData.created_at ? new Date(userData.created_at) : new Date())
+        joinDate: userData.joinDate ? new Date(userData.joinDate) : (userData.created_at ? new Date(userData.created_at) : new Date()),
+        lastLogin: userData.lastLogin || userData.last_login ? new Date(userData.lastLogin || userData.last_login) : null
       };
       
       debugLog('Login - 原始用户数据:', userData);

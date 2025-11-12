@@ -1,5 +1,6 @@
 // 令牌同步工具 - 确保前端令牌存储一致性
 import { debugLog } from './debug';
+import { API_CONFIG } from '../config/api.config';
 
 export const tokenSync = {
   // 获取有效的令牌（优先使用新的存储位置）
@@ -43,7 +44,7 @@ export const tokenSync = {
   // 验证令牌是否有效
   validateToken: async (token: string): Promise<boolean> => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const apiUrl = import.meta.env.VITE_API_URL || API_CONFIG.BASE_URL;
       const response = await fetch(`${apiUrl}/admin/check`, {
         headers: {
           'Authorization': `Bearer ${token}`,

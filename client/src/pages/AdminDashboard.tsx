@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { debugLog } from '../utils/debug';
+import { API_CONFIG } from '../config/api.config';
 
 interface DashboardStats {
   totalUsers: number;
@@ -86,7 +87,7 @@ const AdminDashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       // 获取统计数据
-      const statsResponse = await authFetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/dashboard/stats`);
+      const statsResponse = await authFetch(`${API_CONFIG.BASE_URL}/admin/dashboard/stats`);
       
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
@@ -109,7 +110,7 @@ const AdminDashboard: React.FC = () => {
       }
 
       // 获取最近活动
-      const activityResponse = await authFetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/dashboard/activity`);
+      const activityResponse = await authFetch(`${API_CONFIG.BASE_URL}/admin/dashboard/activity`);
       
       if (activityResponse.ok) {
         const activityData = await activityResponse.json();
@@ -128,8 +129,8 @@ const AdminDashboard: React.FC = () => {
       }
 
       // 获取系统状态
-      debugLog('🔍 获取系统状态，API URL:', import.meta.env.VITE_API_URL || '/api');
-      const systemResponse = await authFetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/system/status`);
+      debugLog('🔍 获取系统状态，API URL:', API_CONFIG.BASE_URL);
+      const systemResponse = await authFetch(`${API_CONFIG.BASE_URL}/admin/system/status`);
       
       debugLog('🔍 系统状态响应:', {
         ok: systemResponse.ok,

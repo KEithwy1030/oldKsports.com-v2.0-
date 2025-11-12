@@ -6,6 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { User, LogOut, Menu, X, Bell, MessageCircle, AtSign, Mail, AlertCircle, Sun, Moon } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useMountedSignal } from '../hooks/useMountedSignal';
+import { API_CONFIG } from '../config/api.config';
 
 const Navigation: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -66,7 +67,7 @@ const Navigation: React.FC = () => {
     const signal = nextSignal();
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const apiUrl = API_CONFIG.BASE_URL;
       const response = await fetch(`${apiUrl}/notifications/unread-count`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('oldksports_auth_token')}`
@@ -146,7 +147,7 @@ const Navigation: React.FC = () => {
     if (!isMountedRef.current) return;
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const apiUrl = API_CONFIG.BASE_URL;
       const response = await fetch(`${apiUrl}/notifications/mark-read`, {
         method: 'PUT',
         headers: {
