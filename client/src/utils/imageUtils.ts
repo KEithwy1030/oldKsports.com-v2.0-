@@ -11,14 +11,20 @@ import { API_CONFIG } from '../config/api.config';
 const getBackendBaseUrl = (): string => {
   const apiUrl = import.meta.env.VITE_API_URL || API_CONFIG.BASE_URL;
   
-  // 如果 VITE_API_URL 是完整URL（如 https://api.oldksports.com/api），提取基础URL
-  if (apiUrl.startsWith('http')) {
-    // 从 https://api.oldksports.com/api 提取 https://api.oldksports.com
-    return apiUrl.replace('/api', '').replace(/\/$/, '');
+  // 如果不是完整URL，使用回退方案
+  if (!apiUrl.startsWith('http')) {
+    return import.meta.env.VITE_API_BASE_URL || window.location.origin;
   }
   
-  // 开发环境回退
-  return import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  // 使用 URL 对象安全地提取协议和域名
+  try {
+    const url = new URL(apiUrl);
+    // 移除路径，只保留协议和域名（如 https://api.oldksports.com）
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    // 如果 URL 解析失败，返回当前域名
+    return window.location.origin;
+  }
 };
 
 /**
