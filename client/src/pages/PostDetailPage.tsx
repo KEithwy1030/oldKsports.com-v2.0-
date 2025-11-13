@@ -322,6 +322,11 @@ const PostDetailPage: React.FC = () => {
 
     setIsSubmitting(true);
     
+    // 在函数顶部定义变量，确保在整个函数作用域内可用
+    let hasLeveledUp = false;
+    let oldLevel = user.level;
+    let newLevel = user.level;
+    
     try {
       // 处理图片文件：不再使用 base64，改为上传后使用返回的路径，避免 content 过长
       let replyData = replyContent;
@@ -357,13 +362,13 @@ const PostDetailPage: React.FC = () => {
         }
       }
       
+      // 检查升级（在更新积分前）- 移到函数顶部，确保所有路径都能使用
+      const newTotalPoints = user.points + POINTS_SYSTEM.REPLY_POST;
+      newLevel = USER_LEVELS.slice().reverse().find(level => newTotalPoints >= level.minPoints) || user.level;
+      hasLeveledUp = oldLevel && newLevel && oldLevel.id !== newLevel.id;
+      
       // 优先使用后端API创建回复
       if (postId) {
-        // 检查升级（在更新积分前）
-        const oldLevel = user.level;
-        const newTotalPoints = user.points + POINTS_SYSTEM.REPLY_POST;
-        const newLevel = USER_LEVELS.slice().reverse().find(level => newTotalPoints >= level.minPoints);
-        const hasLeveledUp = oldLevel && newLevel && oldLevel.id !== newLevel.id;
         
         try {
           await forumAPI.createReply(postId, replyData);
@@ -463,13 +468,7 @@ const PostDetailPage: React.FC = () => {
           await addReplyToPost(postId, newLocalReply);
         }
         
-        // 检查升级（在更新积分前）
-        const oldLevel = user.level;
-        const newTotalPoints = user.points + POINTS_SYSTEM.REPLY_POST;
-        const newLevel = USER_LEVELS.slice().reverse().find(level => newTotalPoints >= level.minPoints);
-        const hasLeveledUp = oldLevel && newLevel && oldLevel.id !== newLevel.id;
-        
-        // 回退路径同样给积分
+        // 回退路径同样给积分（升级检测已在函数顶部完成）
         await updateUserPoints(POINTS_SYSTEM.REPLY_POST);
 
         // 浮窗提示积分增加或升级
