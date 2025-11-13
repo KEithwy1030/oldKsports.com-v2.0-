@@ -237,7 +237,47 @@ export const createPost = async (postData, userId) => {
         // 更新用户发帖统计
         await userStatsService.incrementUserPosts(userId);
         
-        return { success: true, message: "Post has been created." };
+        // 增加用户积分（发帖奖励20分）
+        const POINTS_FOR_POST = 20;
+        await new Promise((resolve, reject) => {
+            getDb().query(
+                'UPDATE users SET points = points + ? WHERE id = ?',
+                [POINTS_FOR_POST, userId],
+                (err, results) => {
+                    if (err) {
+                        console.error('增加发帖积分失败:', err);
+                        // 不阻止帖子创建，只记录错误
+                        resolve();
+                    } else {
+                        console.log(`✅ 用户 ${userId} 发帖获得 ${POINTS_FOR_POST} 积分`);
+                        resolve();
+                    }
+                }
+            );
+        });
+        
+        // 查询更新后的用户积分，返回给前端
+        const updatedUser = await new Promise((resolve, reject) => {
+            getDb().query(
+                'SELECT points FROM users WHERE id = ?',
+                [userId],
+                (err, results) => {
+                    if (err) {
+                        console.error('查询用户积分失败:', err);
+                        resolve(null);
+                    } else {
+                        resolve(results[0] || null);
+                    }
+                }
+            );
+        });
+        
+        return { 
+            success: true, 
+            message: "Post has been created.",
+            pointsAwarded: POINTS_FOR_POST,
+            newPoints: updatedUser?.points || null
+        };
     } catch (error) {
         console.error('创建帖子失败:', error);
         throw error;

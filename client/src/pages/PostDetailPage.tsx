@@ -32,8 +32,25 @@ const PostDetailPage: React.FC = () => {
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [toast, setToast] = useState<{visible: boolean; message: string; type: 'success' | 'error' | 'info' | 'points'}>({ visible: false, message: '', type: 'info' });
+  const [toast, setToast] = useState<{visible: boolean; message: string; type: 'success' | 'error' | 'info' | 'points' | 'levelup'}>({ visible: false, message: '', type: 'info' });
   const replyBoxRef = useRef<HTMLDivElement | null>(null);
+  
+  // 监听升级事件
+  useEffect(() => {
+    const handleLevelUp = (event: CustomEvent) => {
+      const { oldLevel, newLevel, newPoints } = event.detail;
+      setToast({
+        visible: true,
+        message: `🎉 恭喜！您升级了！\n从 ${oldLevel.name} 升级到 ${newLevel.name}\n当前积分：${newPoints}`,
+        type: 'levelup'
+      });
+    };
+    
+    window.addEventListener('userLevelUp', handleLevelUp as EventListener);
+    return () => {
+      window.removeEventListener('userLevelUp', handleLevelUp as EventListener);
+    };
+  }, []);
   const [replyTarget, setReplyTarget] = useState<string | null>(null);
 
   // 加载帖子详情
@@ -341,6 +358,12 @@ const PostDetailPage: React.FC = () => {
       
       // 优先使用后端API创建回复
       if (postId) {
+        // 检查升级（在更新积分前）
+        const oldLevel = user.level;
+        const newTotalPoints = user.points + POINTS_SYSTEM.REPLY_POST;
+        const newLevel = USER_LEVELS.slice().reverse().find(level => newTotalPoints >= level.minPoints);
+        const hasLeveledUp = oldLevel && newLevel && oldLevel.id !== newLevel.id;
+        
         try {
           await forumAPI.createReply(postId, replyData);
           
@@ -409,8 +432,16 @@ const PostDetailPage: React.FC = () => {
         }
       }
 
-      // 浮窗提示积分增加
-      setToast({ visible: true, message: `+${POINTS_SYSTEM.REPLY_POST} 积分`, type: 'points' });
+      // 浮窗提示积分增加或升级
+      if (hasLeveledUp) {
+        setToast({ 
+          visible: true, 
+          message: `🎉 恭喜！您升级了！\n从 ${oldLevel.name} 升级到 ${newLevel.name}\n获得 ${POINTS_SYSTEM.REPLY_POST} 积分奖励`, 
+          type: 'levelup' 
+        });
+      } else {
+        setToast({ visible: true, message: `+${POINTS_SYSTEM.REPLY_POST} 积分`, type: 'points' });
+      }
       
       setReplyContent('');
       setSelectedFiles([]);
@@ -431,11 +462,25 @@ const PostDetailPage: React.FC = () => {
           await addReplyToPost(postId, newLocalReply);
         }
         
+        // 检查升级（在更新积分前）
+        const oldLevel = user.level;
+        const newTotalPoints = user.points + POINTS_SYSTEM.REPLY_POST;
+        const newLevel = USER_LEVELS.slice().reverse().find(level => newTotalPoints >= level.minPoints);
+        const hasLeveledUp = oldLevel && newLevel && oldLevel.id !== newLevel.id;
+        
         // 回退路径同样给积分
         await updateUserPoints(POINTS_SYSTEM.REPLY_POST);
 
-        // 浮窗提示积分增加
-        setToast({ visible: true, message: `+${POINTS_SYSTEM.REPLY_POST} 积分`, type: 'points' });
+        // 浮窗提示积分增加或升级
+        if (hasLeveledUp) {
+          setToast({ 
+            visible: true, 
+            message: `🎉 恭喜！您升级了！\n从 ${oldLevel.name} 升级到 ${newLevel.name}\n获得 ${POINTS_SYSTEM.REPLY_POST} 积分奖励`, 
+            type: 'levelup' 
+          });
+        } else {
+          setToast({ visible: true, message: `+${POINTS_SYSTEM.REPLY_POST} 积分`, type: 'points' });
+        }
         
         // 1) 直接在当前内存状态中追加，确保立刻可见
         let updatedLocalPost: any = null;

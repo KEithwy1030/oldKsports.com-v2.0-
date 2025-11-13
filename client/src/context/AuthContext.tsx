@@ -347,7 +347,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateUserPoints = async (pointsToAdd: number) => {
     if (!user) return;
     
+    const oldLevel = user.level;
     const newTotalPoints = user.points + pointsToAdd;
+    const newLevel = getUserLevel(newTotalPoints);
+    const hasLeveledUp = oldLevel && newLevel && oldLevel.id !== newLevel.id;
+    
     debugLog('Adding', pointsToAdd, 'points to user. From', user.points, 'to', newTotalPoints);
     
     try {
@@ -357,7 +361,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedUser = { 
         ...user, 
         points: newTotalPoints, 
-        level: getUserLevel(newTotalPoints),
+        level: newLevel,
         // 明确保留头像相关字段
         avatar: user.avatar,
         hasUploadedAvatar: user.hasUploadedAvatar
@@ -366,6 +370,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('oldksports_user', JSON.stringify(updatedUser));
       
       debugLog('Points updated successfully via API:', updatedUser);
+      
+      // 注意：不在 updateUserPoints 中触发升级事件，因为操作时已经有升级提醒了
+      // 升级事件只在 refreshUserData（被动刷新）时触发，避免重复提醒
       
       // 强制重新渲染UI
       setTimeout(() => {
@@ -380,7 +387,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedUser = { 
         ...user, 
         points: newTotalPoints, 
-        level: getUserLevel(newTotalPoints),
+        level: newLevel,
         // 明确保留头像相关字段
         avatar: user.avatar,
         hasUploadedAvatar: user.hasUploadedAvatar
@@ -389,6 +396,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('oldksports_user', JSON.stringify(updatedUser));
       
       debugLog('Points updated locally:', updatedUser);
+      
+      // 注意：不在 updateUserPoints 中触发升级事件，因为操作时已经有升级提醒了
+      // 升级事件只在 refreshUserData（被动刷新）时触发，避免重复提醒
       
       // 强制重新渲染UI
       setTimeout(() => {
@@ -459,6 +469,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         debugLog('刷新后的用户数据:', processedUserData);
         
+        // 检查是否升级
+        const oldLevel = user.level;
+        const newLevel = getUserLevel(processedUserData.points);
+        const hasLeveledUp = oldLevel && newLevel && oldLevel.id !== newLevel.id;
+        
         // 更新状态和localStorage
         setUser(processedUserData);
         localStorage.setItem('oldksports_user', JSON.stringify(processedUserData));
@@ -467,6 +482,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearAllUserCache();
         
         debugLog('用户数据刷新成功');
+        
+        // 如果升级了，触发升级事件
+        if (hasLeveledUp) {
+          debugLog('检测到升级:', { from: oldLevel.name, to: newLevel.name });
+          // 触发自定义事件，让页面组件监听并显示 Toast
+          window.dispatchEvent(new CustomEvent('userLevelUp', {
+            detail: {
+              oldLevel: oldLevel,
+              newLevel: newLevel,
+              newPoints: processedUserData.points
+            }
+          }));
+        }
       }
     } catch (error) {
       console.error('刷新用户数据失败:', error);

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
-export type ToastType = 'success' | 'error' | 'info' | 'points';
+export type ToastType = 'success' | 'error' | 'info' | 'points' | 'levelup';
 
 interface ToastProps {
   visible: boolean;
@@ -52,6 +52,11 @@ const Toast: React.FC<ToastProps> = ({
           bg: 'bg-emerald-600',
           border: 'border-emerald-300/50'
         };
+      case 'levelup':
+        return {
+          bg: 'bg-gradient-to-r from-purple-600 to-pink-600',
+          border: 'border-purple-300/50'
+        };
       default:
         return {
           bg: 'bg-gray-600',
@@ -62,10 +67,17 @@ const Toast: React.FC<ToastProps> = ({
 
   const styles = getToastStyles();
 
+  // 处理多行消息（支持 \n 换行）
+  const messageLines = message.split('\n');
+
   return createPortal(
     <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[9999]">
-      <div className={`${styles.bg} text-white px-6 py-3 rounded-lg shadow-lg border ${styles.border} text-lg font-semibold`}>
-        {message}
+      <div className={`${styles.bg} text-white px-6 py-4 rounded-lg shadow-lg border ${styles.border} text-lg font-semibold max-w-md text-center`}>
+        {messageLines.map((line, index) => (
+          <div key={index} className={index > 0 ? 'mt-1' : ''}>
+            {line}
+          </div>
+        ))}
       </div>
     </div>,
     document.body

@@ -159,10 +159,50 @@ export const updateUserProfile = async (req, res) => {
             }
         }
         
-        // 如果更新头像，自动设置has_uploaded_avatar为true
-        if (updateData.avatar && !fieldsToUpdate.includes('has_uploaded_avatar = ?')) {
-            fieldsToUpdate.push('has_uploaded_avatar = ?');
-            values.push(1);
+        // 如果更新头像，检查是否为首次上传并增加积分
+        let isFirstAvatarUpload = false;
+        let pointsAwarded = 0;
+        if (updateData.avatar) {
+            // 查询用户当前的头像上传状态
+            const currentUser = await new Promise((resolve, reject) => {
+                getDb().query(
+                    'SELECT has_uploaded_avatar FROM users WHERE id = ?',
+                    [userId],
+                    (err, results) => {
+                        if (err) reject(err);
+                        else resolve(results[0] || null);
+                    }
+                );
+            });
+            
+            // 如果之前没有上传过头像，则给予积分奖励
+            if (currentUser && (!currentUser.has_uploaded_avatar || currentUser.has_uploaded_avatar === 0)) {
+                isFirstAvatarUpload = true;
+                pointsAwarded = 10; // 首次上传头像奖励10分
+                
+                // 增加积分
+                await new Promise((resolve, reject) => {
+                    getDb().query(
+                        'UPDATE users SET points = points + ? WHERE id = ?',
+                        [pointsAwarded, userId],
+                        (err, results) => {
+                            if (err) {
+                                console.error('增加头像上传积分失败:', err);
+                                resolve(); // 不阻止头像更新
+                            } else {
+                                console.log(`✅ 用户 ${userId} 首次上传头像获得 ${pointsAwarded} 积分`);
+                                resolve();
+                            }
+                        }
+                    );
+                });
+            }
+            
+            // 自动设置has_uploaded_avatar为true
+            if (!fieldsToUpdate.includes('has_uploaded_avatar = ?')) {
+                fieldsToUpdate.push('has_uploaded_avatar = ?');
+                values.push(1);
+            }
         }
         
         console.log('🔧 最终更新字段:', {
@@ -248,6 +288,24 @@ export const updateUserProfile = async (req, res) => {
         // 优先使用 join_date（真实注册时间），如果没有则使用 created_at
         const joinDate = updatedUser.join_date || updatedUser.created_at;
 
+        // 查询更新后的用户积分（如果增加了积分）
+        let finalPoints = updatedUser.points;
+        if (pointsAwarded > 0) {
+            const pointsResult = await new Promise((resolve, reject) => {
+                getDb().query(
+                    'SELECT points FROM users WHERE id = ?',
+                    [userId],
+                    (err, results) => {
+                        if (err) reject(err);
+                        else resolve(results[0] || null);
+                    }
+                );
+            });
+            if (pointsResult) {
+                finalPoints = pointsResult.points;
+            }
+        }
+        
         res.json({
             success: true,
             message: 'Profile updated successfully',
@@ -255,12 +313,15 @@ export const updateUserProfile = async (req, res) => {
                 id: updatedUser.id,
                 username: updatedUser.username,
                 email: updatedUser.email,
-                points: updatedUser.points,
+                points: finalPoints,
                 avatar: updatedUser.avatar,
                 hasUploadedAvatar: updatedUser.has_uploaded_avatar,
                 roles: parsedRoles,
                 joinDate: joinDate
-            }
+            },
+            points: finalPoints,
+            pointsAwarded: pointsAwarded > 0 ? pointsAwarded : undefined,
+            isFirstAvatarUpload: isFirstAvatarUpload
         });
     } catch (error) {
         console.error('Error updating user profile:', error);

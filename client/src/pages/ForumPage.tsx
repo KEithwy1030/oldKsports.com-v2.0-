@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { forumAPI, userAPI } from '../utils/api';
-import { FORUM_CATEGORIES, USER_LEVELS, INDUSTRY_ROLES } from '../data/constants';
+import { FORUM_CATEGORIES, USER_LEVELS, INDUSTRY_ROLES, POINTS_SYSTEM } from '../data/constants';
 import { formatTimeAgo } from '../utils/formatTime';
 import { getUserLevel } from '../utils/userUtils';
 import { Plus, Filter, MessageSquare, Clock, Users, Briefcase, AlertTriangle, Reply, Trash2, Star, Coffee, Settings, Search, X, Smile, Image, AtSign, Pin, PinOff } from 'lucide-react';
@@ -17,6 +17,7 @@ import { tokenSync } from '../utils/tokenSync';
 import UserAvatar from '../components/UserAvatar';
 import RealTimeAvatar from '../components/RealTimeAvatar';
 import { debugLog } from '../utils/debug';
+import Toast from '../components/Toast';
 
 interface Post {
   id: number;
@@ -47,14 +48,32 @@ type SubforumStats = {
 };
 
 const ForumPage: React.FC = () => {
-  const { user, updateUserPoints } = useAuth();
+  const { user, refreshUserData } = useAuth();
   const { openChatWith } = useChat();
   const navigate = useNavigate();
   
   const [posts, setPosts] = useState<Post[]>([]);
   const [subforumStats, setSubforumStats] = useState<Record<string, SubforumStats>>({});
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState<{visible: boolean; message: string; type: 'success' | 'error' | 'info' | 'points' | 'levelup'}>({ visible: false, message: '', type: 'info' });
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  
+  // 监听升级事件
+  useEffect(() => {
+    const handleLevelUp = (event: CustomEvent) => {
+      const { oldLevel, newLevel, newPoints } = event.detail;
+      setToast({
+        visible: true,
+        message: `🎉 恭喜！您升级了！\n从 ${oldLevel.name} 升级到 ${newLevel.name}\n当前积分：${newPoints}`,
+        type: 'levelup'
+      });
+    };
+    
+    window.addEventListener('userLevelUp', handleLevelUp as EventListener);
+    return () => {
+      window.removeEventListener('userLevelUp', handleLevelUp as EventListener);
+    };
+  }, []);
   const [newPost, setNewPost] = useState({
     title: '',
     content: '',
@@ -443,17 +462,63 @@ const ForumPage: React.FC = () => {
       contentWithImages = newPost.content + '\n\n' + imageHtml;
     }
 
-        await forumAPI.createPost(newPost.title, contentWithImages, newPost.category);
+        const response = await forumAPI.createPost(newPost.title, contentWithImages, newPost.category);
         setNewPost({ title: '', content: '', category: '' });
         setNewPostImages([]);
         setShowPostForm(false); // 关闭发帖表单
         await loadPosts();
         await loadPostStats(); // 刷新统计
         
-        // 更新用户积分
-        if (updateUserPoints) {
-        updateUserPoints(10);
-      }
+        // 后端已自动增加积分，刷新用户信息以获取最新积分
+        if (refreshUserData) {
+          await refreshUserData();
+        }
+        
+        // 显示积分奖励提醒（使用 Toast）
+        if (user && response?.pointsAwarded) {
+          const oldLevel = user.level;
+          const newTotalPoints = (user.points || 0) + response.pointsAwarded;
+          const newLevel = USER_LEVELS.slice().reverse().find(level => newTotalPoints >= level.minPoints);
+          
+          if (newLevel && newLevel.id !== oldLevel?.id) {
+            setToast({ 
+              visible: true, 
+              message: `🎉 恭喜！帖子发布成功！\n您从 ${oldLevel?.name || '未知'} 升级到 ${newLevel.name}！\n获得 ${response.pointsAwarded} 积分奖励`, 
+              type: 'levelup' 
+            });
+          } else {
+            setToast({ 
+              visible: true, 
+              message: `✅ 帖子发布成功！\n获得 ${response.pointsAwarded} 积分奖励`, 
+              type: 'success' 
+            });
+          }
+        } else if (user) {
+          // 如果后端没有返回积分信息，使用默认值
+          const oldLevel = user.level;
+          const newTotalPoints = (user.points || 0) + POINTS_SYSTEM.CREATE_POST;
+          const newLevel = USER_LEVELS.slice().reverse().find(level => newTotalPoints >= level.minPoints);
+          
+          if (newLevel && newLevel.id !== oldLevel?.id) {
+            setToast({ 
+              visible: true, 
+              message: `🎉 恭喜！帖子发布成功！\n您从 ${oldLevel?.name || '未知'} 升级到 ${newLevel.name}！\n获得 ${POINTS_SYSTEM.CREATE_POST} 积分奖励`, 
+              type: 'levelup' 
+            });
+          } else {
+            setToast({ 
+              visible: true, 
+              message: `✅ 帖子发布成功！\n获得 ${POINTS_SYSTEM.CREATE_POST} 积分奖励`, 
+              type: 'success' 
+            });
+          }
+        } else {
+          setToast({ 
+            visible: true, 
+            message: '✅ 帖子发布成功！', 
+            type: 'success' 
+          });
+        }
     } catch (error) {
       console.error('发帖失败:', error);
     }
@@ -567,6 +632,12 @@ const ForumPage: React.FC = () => {
 
   return (
     <PageTransition>
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ visible: false, message: '', type: 'info' })}
+      />
       <div className="min-h-screen bg-gray-50 dark:bg-gradient-radial dark:from-slate-700 dark:to-slate-900">
 
         {/* 主内容区域 */}

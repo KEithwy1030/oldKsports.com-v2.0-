@@ -14,11 +14,31 @@ import AvatarCropper from '../components/AvatarCropper';
 import BrowserCompatibleModal from '../components/BrowserCompatibleModal';
 import RealTimeAvatar from '../components/RealTimeAvatar';
 import { debugLog } from '../utils/debug';
+import Toast from '../components/Toast';
 
 const UserProfile: React.FC = () => {
-  const { user, updateUserPoints, updateUser, getForumPosts, onAvatarUpdate } = useAuth();
+  const { user, updateUserPoints, updateUser, getForumPosts, onAvatarUpdate, refreshUserData } = useAuth();
   const [isBackendAvailable, setIsBackendAvailable] = useState(true);
   const [forumPosts, setForumPosts] = useState<any[]>([]);
+  const [toast, setToast] = useState<{visible: boolean; message: string; type: 'success' | 'error' | 'info' | 'points' | 'levelup'}>({ visible: false, message: '', type: 'info' });
+  
+  // 监听升级事件
+  useEffect(() => {
+    const handleLevelUp = (event: CustomEvent) => {
+      const { oldLevel, newLevel, newPoints } = event.detail;
+      setToast({
+        visible: true,
+        message: `🎉 恭喜！您升级了！\n从 ${oldLevel.name} 升级到 ${newLevel.name}\n当前积分：${newPoints}`,
+        type: 'levelup'
+      });
+    };
+    
+    window.addEventListener('userLevelUp', handleLevelUp as EventListener);
+    return () => {
+      window.removeEventListener('userLevelUp', handleLevelUp as EventListener);
+    };
+  }, []);
+  
   const [userStats, setUserStats] = useState({
     totalPosts: 0,
     totalReplies: 0,
@@ -246,13 +266,25 @@ const UserProfile: React.FC = () => {
       const newLevel = USER_LEVELS.slice().reverse().find(level => newPoints >= level.minPoints);
       
       if (newLevel && newLevel.id !== oldLevel.id) {
-        alert(`恭喜！您升级了！\n从 ${oldLevel.name} 升级到 ${newLevel.name}\n获得 ${POINTS_SYSTEM.DAILY_CHECKIN} 积分奖励`);
+        setToast({ 
+          visible: true, 
+          message: `🎉 恭喜！您升级了！\n从 ${oldLevel.name} 升级到 ${newLevel.name}\n获得 ${POINTS_SYSTEM.DAILY_CHECKIN} 积分奖励`, 
+          type: 'levelup' 
+        });
       } else {
-        alert(`签到成功！获得 ${POINTS_SYSTEM.DAILY_CHECKIN} 积分奖励`);
+        setToast({ 
+          visible: true, 
+          message: `✅ 签到成功！\n获得 ${POINTS_SYSTEM.DAILY_CHECKIN} 积分奖励`, 
+          type: 'success' 
+        });
       }
     } catch (error) {
       console.error('Checkin failed:', error);
-      alert('签到失败，请重试');
+      setToast({ 
+        visible: true, 
+        message: '❌ 签到失败，请重试', 
+        type: 'error' 
+      });
       setIsCheckingIn(false);
     }
   };
@@ -432,23 +464,17 @@ const UserProfile: React.FC = () => {
         
         debugLog('最终积分奖励决定:', shouldGivePoints);
         
-        if (shouldGivePoints) {
-          debugLog('首次上传头像，给予积分奖励');
-          await updateUserPoints(POINTS_SYSTEM.UPLOAD_AVATAR);
-          
-          // Check if user leveled up
-          const oldLevel = user.level;
-          const newTotalPoints = user.points + POINTS_SYSTEM.UPLOAD_AVATAR;
-          const newLevel = USER_LEVELS.slice().reverse().find(level => newTotalPoints >= level.minPoints);
-          
-          if (newLevel && newLevel.id !== oldLevel.id) {
-            alert(`恭喜！您升级了！\n从 ${oldLevel.name} 升级到 ${newLevel.name}\n首次头像上传成功！获得 ${POINTS_SYSTEM.UPLOAD_AVATAR} 积分奖励`);
-          } else {
-            alert(`首次头像上传成功！获得 ${POINTS_SYSTEM.UPLOAD_AVATAR} 积分奖励`);
-          }
-        } else {
-          debugLog('非首次上传头像，不给积分');
-          alert('头像更新成功！');
+        // 后端会自动增加积分，这里只用于显示提醒
+        // 更新用户资料（后端会自动检查并增加积分）
+        let avatarUpdateResponse: any = null;
+        try {
+          avatarUpdateResponse = await updateUser({ 
+            ...user, 
+            avatar: croppedImageUrl,
+            hasUploadedAvatar: true
+          });
+        } catch (error) {
+          console.error('更新用户资料失败:', error);
         }
         
         // 成功保存后立即关闭弹窗并刷新显示
@@ -456,20 +482,37 @@ const UserProfile: React.FC = () => {
         setIsEditingAvatar(false);
         handleAvatarCancel();
         
-        // 更新用户状态，确保头像立即生效
-        if (shouldGivePoints) {
-          // 首次上传，更新hasUploadedAvatar状态
-          updateUser({ 
-            ...user, 
-            avatar: croppedImageUrl,
-            hasUploadedAvatar: true,
-            points: user.points + POINTS_SYSTEM.UPLOAD_AVATAR
-          });
+        // 刷新用户信息以获取最新积分
+        if (refreshUserData) {
+          await refreshUserData();
+        }
+        
+        // 显示积分奖励提醒（基于后端返回的积分信息）
+        if (avatarUpdateResponse?.pointsAwarded || shouldGivePoints) {
+          const pointsAwarded = avatarUpdateResponse?.pointsAwarded || POINTS_SYSTEM.UPLOAD_AVATAR;
+          const oldLevel = user.level;
+          const newTotalPoints = (user.points || 0) + pointsAwarded;
+          const newLevel = USER_LEVELS.slice().reverse().find(level => newTotalPoints >= level.minPoints);
+          
+          if (newLevel && newLevel.id !== oldLevel?.id) {
+            setToast({ 
+              visible: true, 
+              message: `🎉 恭喜！您升级了！\n从 ${oldLevel?.name || '未知'} 升级到 ${newLevel.name}\n首次头像上传成功！获得 ${pointsAwarded} 积分奖励`, 
+              type: 'levelup' 
+            });
+          } else {
+            setToast({ 
+              visible: true, 
+              message: `✅ 首次头像上传成功！\n获得 ${pointsAwarded} 积分奖励`, 
+              type: 'success' 
+            });
+          }
         } else {
-          // 非首次上传，只更新头像
-          updateUser({ 
-            ...user, 
-            avatar: croppedImageUrl
+          debugLog('非首次上传头像，不给积分');
+          setToast({ 
+            visible: true, 
+            message: '✅ 头像更新成功！', 
+            type: 'success' 
           });
         }
         
@@ -766,6 +809,13 @@ const UserProfile: React.FC = () => {
       100;
 
   return (
+    <>
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ visible: false, message: '', type: 'info' })}
+      />
     <div className="min-h-screen bg-gray-50 dark:bg-gradient-radial dark:from-slate-700 dark:to-slate-900">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
@@ -1288,10 +1338,6 @@ const UserProfile: React.FC = () => {
                     <span className="text-emerald-400">+{POINTS_SYSTEM.REPLY_POST} 积分</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>点赞帖子</span>
-                    <span className="text-emerald-400">+{POINTS_SYSTEM.LIKE_POST} 积分</span>
-                  </div>
-                  <div className="flex justify-between">
                     <span>首次修改头像</span>
                     <span className="text-emerald-400">+{POINTS_SYSTEM.UPLOAD_AVATAR} 积分</span>
                   </div>
@@ -1388,6 +1434,7 @@ const UserProfile: React.FC = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

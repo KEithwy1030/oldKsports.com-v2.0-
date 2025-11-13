@@ -18,7 +18,6 @@ export const POINTS_SYSTEM = {
   DAILY_CHECKIN: 10,
   CREATE_POST: 20,
   REPLY_POST: 5,
-  LIKE_POST: 2,
   UPLOAD_AVATAR: 10,
 };
 
