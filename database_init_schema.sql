@@ -162,6 +162,15 @@ CREATE TABLE IF NOT EXISTS onboarding_tasks (
 -- VALUES ('admin', 'admin@oldksports.com', '$2b$10$8tr8vrgRdHBJ42lKB92jl.GJd5Sl9xG8MYZFNBZW58hEqqodCIGC2', 1, '管理员');
 
 -- ============================================
+-- 数据库迁移脚本（用于已存在的表）
+-- ============================================
+-- 如果表已存在但缺少字段，可以手动执行以下 ALTER TABLE 语句
+-- 注意：如果列已存在，这些语句会报错，但不会影响数据库
+
+-- 为 onboarding_tasks 表添加 dismissed_forever 字段（如果不存在）
+-- ALTER TABLE onboarding_tasks ADD COLUMN dismissed_forever TINYINT(1) DEFAULT 0 AFTER last_shown_at;
+
+-- ============================================
 -- 完成！
 -- ============================================
 -- 所有表结构已创建完毕

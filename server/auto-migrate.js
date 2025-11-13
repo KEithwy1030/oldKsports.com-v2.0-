@@ -150,7 +150,8 @@ async function compatibilityMigration(db) {
     await ensureColumn('onboarding_tasks', 'completed_at', 'ADD COLUMN completed_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER reward');
     await ensureColumn('onboarding_tasks', 'created_at', 'ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER completed_at');
     await ensureColumn('onboarding_tasks', 'last_shown_at', 'ADD COLUMN last_shown_at DATETIME DEFAULT NULL AFTER created_at');
-    await ensureColumn('onboarding_tasks', 'progress', 'ADD COLUMN progress INT DEFAULT 0 AFTER last_shown_at');
+    await ensureColumn('onboarding_tasks', 'dismissed_forever', 'ADD COLUMN dismissed_forever TINYINT(1) DEFAULT 0 AFTER last_shown_at');
+    await ensureColumn('onboarding_tasks', 'progress', 'ADD COLUMN progress INT DEFAULT 0 AFTER dismissed_forever');
     await ensureColumn('onboarding_tasks', 'target', 'ADD COLUMN target INT DEFAULT 1 AFTER progress');
 }
 
