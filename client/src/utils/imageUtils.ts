@@ -5,6 +5,23 @@ import { debugLog } from './debug';
 import { API_CONFIG } from '../config/api.config';
 
 /**
+ * 从 VITE_API_URL 中提取后端基础URL
+ * @returns 后端基础URL，如 https://api.oldksports.com
+ */
+const getBackendBaseUrl = (): string => {
+  const apiUrl = import.meta.env.VITE_API_URL || API_CONFIG.BASE_URL;
+  
+  // 如果 VITE_API_URL 是完整URL（如 https://api.oldksports.com/api），提取基础URL
+  if (apiUrl.startsWith('http')) {
+    // 从 https://api.oldksports.com/api 提取 https://api.oldksports.com
+    return apiUrl.replace('/api', '').replace(/\/$/, '');
+  }
+  
+  // 开发环境回退
+  return import.meta.env.VITE_API_BASE_URL || window.location.origin;
+};
+
+/**
  * 构建图片URL
  * @param imagePath 图片路径，如 "/uploads/images/filename.jpg"
  * @returns 完整的图片URL
@@ -33,15 +50,16 @@ export const buildImageUrl = (imagePath: string): string => {
   }
 
   const apiUrl = import.meta.env.VITE_API_URL || API_CONFIG.BASE_URL;
-  const baseUrl = apiUrl.startsWith('http') ? apiUrl.replace('/api', '') : (import.meta.env.PROD ? 'https://oldksports.com' : (import.meta.env.VITE_API_BASE_URL || window.location.origin));
+  const backendBaseUrl = getBackendBaseUrl();
+  const baseUrl = apiUrl.startsWith('http') ? apiUrl.replace('/api', '') : (import.meta.env.PROD ? backendBaseUrl : (import.meta.env.VITE_API_BASE_URL || window.location.origin));
 
   // 如果已经是完整URL，做兼容性规范化
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     try {
       const url = new URL(imagePath);
-      // 所有 /uploads/images 统一强制回落到固定域名，避免跨域部署路径差异
+      // 所有 /uploads/images 统一强制回落到后端域名，避免跨域部署路径差异
       if (url.pathname.startsWith('/uploads/images/')) {
-        const fixed = import.meta.env.PROD ? `https://oldksports.com${url.pathname}` : `${window.location.origin}${url.pathname}`;
+        const fixed = import.meta.env.PROD ? `${getBackendBaseUrl()}${url.pathname}` : `${window.location.origin}${url.pathname}`;
         return fixed;
       }
       // 统一 localhost:3001 → 8080（历史本地）
@@ -51,9 +69,9 @@ export const buildImageUrl = (imagePath: string): string => {
         url.protocol = new URL(baseUrl).protocol;
         return url.toString();
       }
-      // 统一旧的zeabur域名到自定义域名
+      // 统一旧的zeabur域名到后端域名
       if (url.hostname === 'oldksports-app.zeabur.app' || url.hostname === 'oldksports-server.zeabur.app') {
-        const fixed = import.meta.env.PROD ? `https://oldksports.com${url.pathname}` : `${window.location.origin}${url.pathname}`;
+        const fixed = import.meta.env.PROD ? `${getBackendBaseUrl()}${url.pathname}` : `${window.location.origin}${url.pathname}`;
         return fixed;
       }
     } catch {}
@@ -65,10 +83,10 @@ export const buildImageUrl = (imagePath: string): string => {
   
   debugLog('🖼️ API URL:', apiUrl);
   
-  // 无论环境，只要是 /uploads/images 的相对路径，生产固定 oldksports.com
+  // 无论环境，只要是 /uploads/images 的相对路径，使用后端域名
   if (normalizedPath.startsWith('/uploads/images/')) {
     const result = import.meta.env.PROD 
-      ? `https://oldksports.com${normalizedPath}`
+      ? `${getBackendBaseUrl()}${normalizedPath}`
       : `${window.location.origin}${normalizedPath}`;
     debugLog('🖼️ uploads 最终URL:', result);
     return result;
@@ -130,8 +148,8 @@ export const isValidImagePath = (imagePath: string): boolean => {
 export const fixImageUrlsInContent = (content: string): string => {
   if (!content) return content;
   
-  // 统一历史绝对URL的域名（生产固定 oldksports.com）
-  const backendUrl = import.meta.env.PROD ? 'https://oldksports.com' : (import.meta.env.VITE_API_BASE_URL || window.location.origin);
+  // 统一历史绝对URL的域名（使用后端域名）
+  const backendUrl = getBackendBaseUrl();
   let fixedContent = content.replace(
     /http:\/\/localhost:3001(\/uploads\/images\/[^"']*)/g,
     `${backendUrl}$1`
