@@ -18,6 +18,7 @@ import UserAvatar from '../components/UserAvatar';
 import RealTimeAvatar from '../components/RealTimeAvatar';
 import { debugLog } from '../utils/debug';
 import Toast from '../components/Toast';
+import { buildApiUrl } from '../config/api.config';
 
 interface Post {
   id: number;
@@ -163,7 +164,7 @@ const ForumPage: React.FC = () => {
         const formData = new FormData();
         formData.append('image', file);
 
-        const response = await fetch('/api/upload', {
+        const response = await fetch(buildApiUrl('/upload'), {
           method: 'POST',
           body: formData,
         });
@@ -282,7 +283,7 @@ const ForumPage: React.FC = () => {
   const loadMerchants = useCallback(async () => {
     try {
       // 商家API是公开的，不需要token
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/merchants`, {
+      const response = await fetch(buildApiUrl('/merchants'), {
         credentials: 'include'
       });
       
@@ -305,7 +306,7 @@ const ForumPage: React.FC = () => {
   // 加载黑榜数据
   const loadBlacklist = useCallback(async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/blacklist/public`, {
+      const response = await fetch(buildApiUrl('/admin/blacklist/public'), {
         credentials: 'include'
       });
       

@@ -15,6 +15,7 @@ import PostContent from '../components/PostContent';
 import UserAvatar from '../components/UserAvatar';
 import ClickableUserAvatar from '../components/ClickableUserAvatar';
 import UserLevelComponent from '../components/UserLevel';
+import { buildApiUrl } from '../config/api.config';
 import '../styles/modal-fix.css';
 
 const PostDetailPage: React.FC = () => {
@@ -336,7 +337,7 @@ const PostDetailPage: React.FC = () => {
           const formData = new FormData();
           imageFiles.forEach(file => formData.append('images', file));
           try {
-            const uploadRes = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/upload/images`, {
+            const uploadRes = await fetch(buildApiUrl('/upload/images'), {
               method: 'POST',
               body: formData
             });

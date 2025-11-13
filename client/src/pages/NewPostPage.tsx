@@ -8,6 +8,7 @@ import MultiImageUpload from '../components/MultiImageUpload';
 import { POINTS_SYSTEM, USER_LEVELS } from '../data/constants';
 import PageTransition from '../components/PageTransition';
 import Toast from '../components/Toast';
+import { buildApiUrl } from '../config/api.config';
 
 const NewPostPage: React.FC = () => {
   const navigate = useNavigate();
@@ -60,7 +61,7 @@ const NewPostPage: React.FC = () => {
     const files = await Promise.all(dataUrls.map((d, i) => dataUrlToFile(d, i)));
     files.forEach(f => form.append('images', f));
     try {
-      const resp = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/upload/images`, { method: 'POST', body: form });
+      const resp = await fetch(buildApiUrl('/upload/images'), { method: 'POST', body: form });
       const result = await resp.json();
       if (result?.success && Array.isArray(result.files)) {
         const serverPaths: string[] = result.files.map((f: any) => f.path);
