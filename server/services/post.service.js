@@ -30,31 +30,36 @@ export const findPosts = (category, page = 1, limit = 20) => {
         // 计算偏移量
         const offset = (page - 1) * limit;
         
-        // 优化查询：先获取帖子总数（用于分页信息）
+        // 优化查询：置顶帖子在所有子版块显示，普通帖子只在当前子版块显示
+        // WHERE条件：置顶帖子(is_sticky=1)显示在所有版块，非置顶帖子只显示在当前版块
         const countQuery = normalized 
-            ? `SELECT COUNT(DISTINCT p.id) as total FROM forum_posts p WHERE p.category = ?`
+            ? `SELECT COUNT(DISTINCT p.id) as total 
+               FROM forum_posts p 
+               WHERE p.is_sticky = 1 OR p.category = ?`
             : `SELECT COUNT(*) as total FROM forum_posts p`;
         const countParams = normalized ? [normalized] : [];
         
         // 优化查询：使用子查询获取回复数量，避免复杂的 GROUP BY
-        // 先获取帖子列表，然后单独查询回复数量（或使用子查询）
+        // 置顶帖子跨版块显示，普通帖子按版块过滤
         const postsQuery = normalized ?
             `SELECT p.id, p.title, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, 
+                    p.is_sticky, p.is_locked,
                     p.author_id, u.username, u.avatar, u.points as author_points,
                     (SELECT MAX(created_at) FROM forum_replies WHERE post_id = p.id) as latest_reply_time,
                     (SELECT COUNT(*) FROM forum_replies WHERE post_id = p.id) as reply_count
              FROM forum_posts p
              JOIN users u ON p.author_id = u.id
-             WHERE p.category = ?
-             ORDER BY COALESCE((SELECT MAX(created_at) FROM forum_replies WHERE post_id = p.id), p.created_at) DESC
+             WHERE p.is_sticky = 1 OR p.category = ?
+             ORDER BY p.is_sticky DESC, COALESCE((SELECT MAX(created_at) FROM forum_replies WHERE post_id = p.id), p.created_at) DESC
              LIMIT ? OFFSET ?` :
             `SELECT p.id, p.title, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes,
+                    p.is_sticky, p.is_locked,
                     p.author_id, u.username, u.avatar, u.points as author_points,
                     (SELECT MAX(created_at) FROM forum_replies WHERE post_id = p.id) as latest_reply_time,
                     (SELECT COUNT(*) FROM forum_replies WHERE post_id = p.id) as reply_count
              FROM forum_posts p
              JOIN users u ON p.author_id = u.id
-             ORDER BY COALESCE((SELECT MAX(created_at) FROM forum_replies WHERE post_id = p.id), p.created_at) DESC
+             ORDER BY p.is_sticky DESC, COALESCE((SELECT MAX(created_at) FROM forum_replies WHERE post_id = p.id), p.created_at) DESC
              LIMIT ? OFFSET ?`;
         
         const postsParams = normalized 
@@ -80,13 +85,25 @@ export const findPosts = (category, page = 1, limit = 20) => {
                 console.log(`查询帖子成功: 第${page}页，每页${limit}条，共${total}条，返回${data.length}条记录`);
                 
                 // 标准化数据格式
-                const normalizedData = data.map(post => ({
-                    ...post,
-                    author: post.username,
-                    author_id: post.author_id,
-                    timestamp: post.created_at,
-                    latest_activity: post.latest_reply_time || post.created_at
-                }));
+                const normalizedData = data.map(post => {
+                    // 先转换布尔字段
+                    const isSticky = post.is_sticky === 1 || post.is_sticky === true || Number(post.is_sticky) === 1;
+                    const isLocked = post.is_locked === 1 || post.is_locked === true || Number(post.is_locked) === 1;
+                    
+                    // 创建新对象，先删除原始值，再添加转换后的值
+                    const { is_sticky: _, is_locked: __, ...rest } = post;
+                    const normalized = {
+                        ...rest,
+                        author: post.username,
+                        author_id: post.author_id,
+                        timestamp: post.created_at,
+                        latest_activity: post.latest_reply_time || post.created_at,
+                        // 将数字类型的布尔字段转换为真正的布尔值 (1 -> true, 0 -> false)
+                        is_sticky: Boolean(isSticky),
+                        is_locked: Boolean(isLocked)
+                    };
+                    return normalized;
+                });
                 
                 resolve({ posts: normalizedData, total: total });
             });
@@ -97,7 +114,7 @@ export const findPosts = (category, page = 1, limit = 20) => {
 export const findPostById = (postId) => {
     return new Promise((resolve, reject) => {
         // 首先获取帖子信息 - 添加author_id字段和author_points字段
-        const postQuery = "SELECT p.id, p.title, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, u.id as author_id, u.username, u.avatar, u.avatar AS userImg, u.points as author_points FROM users u JOIN forum_posts p ON u.id = p.author_id WHERE p.id = ?";
+        const postQuery = "SELECT p.id, p.title, p.content, p.category, p.created_at, p.updated_at, p.views, p.likes, p.is_sticky, p.is_locked, u.id as author_id, u.username, u.avatar, u.avatar AS userImg, u.points as author_points FROM users u JOIN forum_posts p ON u.id = p.author_id WHERE p.id = ?";
         getDb().query(postQuery, [postId], (err, postData) => {
             if (err) return reject(err);
             if (!postData || postData.length === 0) return resolve(null);
@@ -107,16 +124,12 @@ export const findPostById = (postId) => {
             // 添加时间字段别名，确保前端能正确获取
             post.timestamp = post.created_at;
             post.author = post.username;
+            // 将数字类型的布尔字段转换为真正的布尔值 (1 -> true, 0 -> false)
+            // 确保转换结果始终是布尔值
+            post.is_sticky = post.is_sticky === 1 || post.is_sticky === true ? true : false;
+            post.is_locked = post.is_locked === 1 || post.is_locked === true ? true : false;
             
-            console.log('🔍 帖子详情查询结果:', {
-                id: post.id,
-                title: post.title,
-                author: post.author,
-                author_id: post.author_id,
-                timestamp: post.timestamp
-            });
-            
-            // 然后获取该帖子的回复
+                   // 然后获取该帖子的回复
             // 使用 COALESCE 在用户缺失时提供兜底昵称，并统一时间别名为 createdAt
             const repliesQuery = "SELECT r.id, r.content, r.author_id, r.created_at AS createdAt, r.likes, COALESCE(u.username, CONCAT('用户#', r.author_id)) AS author FROM forum_replies r LEFT JOIN users u ON r.author_id = u.id WHERE r.post_id = ? ORDER BY r.created_at ASC";
             getDb().query(repliesQuery, [postId], (err, repliesData) => {
@@ -294,11 +307,21 @@ export const updatePost = (postData, postId, userId, isAdmin = false) => {
             values.push(normalizedCategory);
         }
         
+        // 只有管理员可以更新 is_sticky 字段
+        if (postData.is_sticky !== undefined) {
+            if (!isAdmin) {
+                return reject(new Error("只有管理员可以置顶/取消置顶帖子"));
+            }
+            updates.push('`is_sticky`=?');
+            values.push(postData.is_sticky ? 1 : 0);
+        }
+        
         if (updates.length === 0) {
             return reject(new Error("No fields to update"));
         }
         
         // 管理员可以更新任何帖子，普通用户只能更新自己的帖子
+        // 注意：如果包含 is_sticky 更新，则必须是管理员操作
         const q = isAdmin 
             ? `UPDATE forum_posts SET ${updates.join(', ')} WHERE \`id\` = ?`
             : `UPDATE forum_posts SET ${updates.join(', ')} WHERE \`id\` = ? AND \`author_id\` = ?`;

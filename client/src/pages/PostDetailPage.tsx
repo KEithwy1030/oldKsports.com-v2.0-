@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageSquare, Eye, Clock, Heart, Reply, Send, Smile, Image, Video, X } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Eye, Clock, Heart, Reply, Send, Smile, Image, Video, X, Pin } from 'lucide-react';
 import PageTransition from '../components/PageTransition';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
@@ -531,10 +531,19 @@ const PostDetailPage: React.FC = () => {
                 <div className="p-2 bg-emerald-600/20 rounded-lg">
                   <MessageSquare className="w-5 h-5 text-emerald-400" />
                 </div>
-                <div>
-                  <h1 className="text-xl font-bold text-white">
-                    {post.title}
-                  </h1>
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2 mb-1">
+                    <h1 className="text-xl font-bold text-white">
+                      {post.title}
+                    </h1>
+                    {/* 置顶标识 */}
+                    {post.is_sticky && (
+                      <span className="inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                        <Pin className="w-3 h-3" />
+                        <span>置顶</span>
+                      </span>
+                    )}
+                  </div>
                   <p className="text-gray-400 text-sm">
                     {FORUM_CATEGORIES.find(c => c.id === post.category)?.name || post.category}
                   </p>

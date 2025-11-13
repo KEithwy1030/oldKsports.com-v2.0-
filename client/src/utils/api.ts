@@ -48,14 +48,19 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
       token: authHeaders.Authorization ? 'Present' : 'Missing'
     });
     
+    // 合并headers，确保authHeaders不会被options中的headers覆盖
+    const mergedHeaders = {
+      'Content-Type': 'application/json',
+      ...authHeaders,
+      'Origin': window.location.origin, // 明确设置Origin头
+      'Referer': window.location.href,   // 设置Referer头
+      ...(options.headers || {}) // options中的headers优先级最高
+    };
+    
     const config: RequestInit = {
-      headers: {
-        ...authHeaders,
-        'Origin': window.location.origin, // 明确设置Origin头
-        'Referer': window.location.href   // 设置Referer头
-      },
-      credentials: 'include',
-      ...options
+      ...options,
+      headers: mergedHeaders,
+      credentials: 'include'
     };
     
     const response = await fetch(url, config);
@@ -84,8 +89,12 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
         }
       }
       
-      // 创建一个带有response属性的错误对象
+      // 创建一个带有response属性的错误对象，包含详细的错误信息
       const error = new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      (error as any).status = response.status;
+      (error as any).error = errorData.error;
+      (error as any).message = errorData.error || errorData.message || error.message;
+      (error as any).data = errorData;
       (error as any).response = {
         status: response.status,
         data: errorData
@@ -431,7 +440,7 @@ export const forumAPI = {
     });
   },
   
-  updatePost: async (postId: number, data: { title?: string, content?: string, category?: string }) => {
+  updatePost: async (postId: number, data: { title?: string, content?: string, category?: string, is_sticky?: boolean }) => {
     return await apiRequest(`/posts/${postId}`, {
       method: 'PUT',
       body: JSON.stringify(data)

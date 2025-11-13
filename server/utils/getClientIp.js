@@ -20,9 +20,16 @@ export function getClientIp(req) {
     }
     
     // 回退到连接IP地址
-    return req.connection?.remoteAddress || 
-           req.socket?.remoteAddress || 
-           req.ip || 
-           'unknown';
+    const fallbackIp = req.connection?.remoteAddress || 
+                       req.socket?.remoteAddress || 
+                       req.ip || 
+                       null;
+    
+    // 如果获取到IP，处理IPv6映射格式（::ffff:127.0.0.1 -> 127.0.0.1）
+    if (fallbackIp) {
+        return fallbackIp.replace(/^::ffff:/, '');
+    }
+    
+    return 'unknown';
 }
 

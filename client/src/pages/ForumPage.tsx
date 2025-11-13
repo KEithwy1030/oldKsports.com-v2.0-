@@ -6,7 +6,7 @@ import { forumAPI, userAPI } from '../utils/api';
 import { FORUM_CATEGORIES, USER_LEVELS, INDUSTRY_ROLES } from '../data/constants';
 import { formatTimeAgo } from '../utils/formatTime';
 import { getUserLevel } from '../utils/userUtils';
-import { Plus, Filter, MessageSquare, Clock, Users, Briefcase, AlertTriangle, Reply, Trash2, Star, Coffee, Settings, Search, X, Smile, Image, AtSign } from 'lucide-react';
+import { Plus, Filter, MessageSquare, Clock, Users, Briefcase, AlertTriangle, Reply, Trash2, Star, Coffee, Settings, Search, X, Smile, Image, AtSign, Pin, PinOff } from 'lucide-react';
 import PageTransition from '../components/PageTransition';
 import PostImageGallery from '../components/PostImageGallery';
 import TokenCleaner from '../components/TokenCleaner';
@@ -29,6 +29,9 @@ interface Post {
   timestamp: string;
   views: number;
   likes: number;
+  is_sticky?: boolean;
+  is_locked?: boolean;
+  author_id?: number;
   replies: Array<{
     id: number;
     author: string;
@@ -342,8 +345,28 @@ const ForumPage: React.FC = () => {
         ? data 
         : (data?.posts || data?.data?.posts || []);
       
-      if (Array.isArray(postsArray)) {
-        setPosts(postsArray);
+      if (Array.isArray(postsArray) && postsArray.length > 0) {
+        // 确保is_sticky字段被正确转换为布尔值
+        const processedPosts = postsArray.map((post, index) => {
+          // 简化转换：1, true, '1' 都视为 true；0, false, '0', null, undefined 都视为 false
+          const rawSticky = post.is_sticky;
+          const isSticky = rawSticky === 1 || rawSticky === true || rawSticky === '1' || rawSticky === 'true';
+          const rawLocked = post.is_locked;
+          const isLocked = rawLocked === 1 || rawLocked === true || rawLocked === '1' || rawLocked === 'true';
+          
+          // 创建新对象，确保 is_sticky 和 is_locked 被正确设置为布尔值
+          const processed = {
+            ...post,
+            is_sticky: Boolean(isSticky),
+            is_locked: Boolean(isLocked)
+          };
+          
+          return processed;
+        });
+        
+        // 统计置顶帖子数量
+        const stickyPosts = processedPosts.filter(p => p.is_sticky === true);
+        setPosts(processedPosts);
         // 计算总页数（基于实际返回的帖子数量）
         const total = data?.total || postsArray.length;
         setTotalPages(Math.max(1, Math.ceil(total / postsPerPage)));
@@ -463,12 +486,36 @@ const ForumPage: React.FC = () => {
     }
   };
 
+  // 处理置顶/取消置顶帖子（仅管理员）
+  const handleToggleSticky = async (postId: number, currentSticky: boolean) => {
+    if (!user?.isAdmin && !user?.is_admin) {
+      alert('只有管理员可以置顶帖子');
+      return;
+    }
+    
+    if (!confirm(currentSticky ? '确定要取消置顶这条帖子吗？' : '确定要置顶这条帖子吗？')) {
+      return;
+    }
+    
+    try {
+      const response = await forumAPI.updatePost(postId, { is_sticky: !currentSticky });
+      console.log('置顶操作响应:', response);
+      await loadPosts();
+      await loadPostStats(); // 刷新统计
+      setEditingPostId(null);
+    } catch (error: any) {
+      console.error('置顶操作失败:', error);
+      const errorMessage = error?.message || error?.error || '置顶操作失败';
+      alert(errorMessage);
+    }
+  };
+
   // 切换编辑状态
   const toggleEditMenu = (postId: number, e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (editingPostId === postId) {
       setEditingPostId(null);
-      } else {
+    } else {
       setEditingPostId(postId);
     }
   };
@@ -887,12 +934,34 @@ const ForumPage: React.FC = () => {
                     filteredPosts.map((post) => (
                       <div 
                         key={post.id} 
-                        className={`bg-white dark:bg-white/5 backdrop-blur-sm rounded-lg border border-gray-200 dark:border-white/10 p-4 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors relative cursor-pointer ${editingPostId === post.id ? 'z-[100]' : ''}`}
+                        className={`bg-white dark:bg-white/5 backdrop-blur-sm rounded-lg border border-gray-200 dark:border-white/10 p-4 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors relative cursor-pointer ${editingPostId === post.id ? 'z-[100]' : 'z-auto'}`}
                         onClick={() => navigate(`/forum/post/${post.id}`)}
                       >
+                        {/* 置顶标识 - 参考主流网站设计：标题旁标签 + 背景高亮 */}
+                        {post.is_sticky === true && (
+                          <>
+                            {/* 背景高亮 - 柔和的emerald色背景 */}
+                            <div className="absolute inset-0 bg-emerald-50/50 dark:bg-emerald-900/10 border-l-2 border-emerald-500 rounded-lg -z-0" />
+                            {/* 右上角横向拉长的切角 + 明显的pin标识 */}
+                            <div 
+                              className="absolute top-0 right-0 z-10"
+                              style={{
+                                width: '120px',
+                                height: '40px',
+                                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.95) 0%, rgba(5, 150, 105, 0.9) 100%)',
+                                clipPath: 'polygon(100% 0, 100% 100%, 0 0)',
+                                boxShadow: '0 2px 12px rgba(16, 185, 129, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25)'
+                              }}
+                            >
+                              <div className="absolute top-2 right-3 flex items-center justify-center">
+                                <Pin className="w-5 h-5 text-white drop-shadow-lg" fill="white" strokeWidth={2.5} />
+                              </div>
+                            </div>
+                          </>
+                        )}
                         {/* 管理齿轮图标 - 仅作者或管理员可见 */}
                         {((user?.isAdmin || user?.is_admin) || user?.id === (post.author_id || post.author?.id)) && (
-                          <div className="absolute top-4 right-4 z-[9999] post-menu-container">
+                          <div className="absolute top-4 right-4 z-[50] post-menu-container">
                             <button 
                                 onClick={(e) => {
                                 toggleEditMenu(post.id, e);
@@ -905,7 +974,7 @@ const ForumPage: React.FC = () => {
                             
                             {/* 管理菜单 */}
                             {editingPostId === post.id && (
-                              <div className="absolute top-10 right-0 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-slate-600 min-w-[200px] py-2">
+                              <div className="absolute top-10 right-0 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-slate-600 min-w-[200px] py-2 z-[50]">
                                 <div className="px-3 py-1 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-slate-600">
                                   选择子版块
                                 </div>
@@ -936,6 +1005,29 @@ const ForumPage: React.FC = () => {
                                 >
                                   黑榜曝光
                                 </button>
+                                <div className="border-t border-gray-200 dark:border-slate-600 my-1"></div>
+                                {/* 置顶帖子 - 仅管理员可见 */}
+                                {(user?.isAdmin || user?.is_admin) && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleSticky(post.id, post.is_sticky || false);
+                                    }}
+                                    className="w-full px-4 py-2 text-left text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 flex items-center space-x-2"
+                                  >
+                                    {post.is_sticky ? (
+                                      <>
+                                        <PinOff className="w-4 h-4" />
+                                        <span>取消置顶</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Pin className="w-4 h-4" />
+                                        <span>置顶帖子</span>
+                                      </>
+                                    )}
+                                  </button>
+                                )}
                                 <div className="border-t border-gray-200 dark:border-slate-600 my-1"></div>
                                 <button
                                   onClick={(e) => {
@@ -981,9 +1073,11 @@ const ForumPage: React.FC = () => {
                               })()}
                               <span className="text-gray-600 dark:text-gray-400 text-xs">{formatTimeAgo(post.timestamp)}</span>
                                 </div>
-                            <div className="text-lg font-semibold text-gray-900 dark:text-white mb-2 hover:text-emerald-400 dark:hover:text-emerald-400">
-                                      {post.title}
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="text-lg font-semibold text-gray-900 dark:text-white hover:text-emerald-400 dark:hover:text-emerald-400">
+                                {post.title}
                               </div>
+                            </div>
                             <div className="text-gray-700 dark:text-gray-300 text-sm mb-2 line-clamp-2">
                               <HtmlContent content={fixImageUrlsInContent(post.content)} hideImages={true} />
                             </div>

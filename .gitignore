@@ -155,6 +155,9 @@ oldksports_v2.sql
 oldksports_data_only.sql
 zeabur.sql
 *.sql.dump
+mysql_backup/
+oldksports_backup.sql
+oldksports_processed.sql
 
 # Upload directories (keep structure but not files)
 server/uploads/
@@ -179,6 +182,10 @@ docker-compose.dev.yml
 # 这些文件用于本地开发和参考，但不需要提交到仓库
 cleanup-redundant-files.ps1
 DATABASE_FEATURES.md
+DATABASE_SETUP.md
 DEPLOYMENT_PRE_CHECK.md
 GIT_COMMIT_CHECKLIST.md
+QUICK_START.md
 verify-before-commit.ps1
+import-database.ps1
+reset-database.ps1

@@ -27,7 +27,6 @@ import { getUserLevel } from '../utils/userUtils';
 import { INDUSTRY_ROLES } from '../data/constants';
 
 const AdminPage: React.FC = () => {
-  console.log('🔍 [AdminPage] 组件渲染');
   const { user, getBotAccounts, addBotAccounts, updateBotAccount, getForumPosts } = useAuth();
   const [activeTab, setActiveTab] = useState<'users' | 'bots' | 'merchants' | 'blacklist'>('users');
   const [createdAccounts, setCreatedAccounts] = useState<any[]>([]);
@@ -65,24 +64,13 @@ const AdminPage: React.FC = () => {
 
   // 加载所有用户数据
   const loadAllUsers = async () => {
-    console.log('🔍 [AdminPage] loadAllUsers 开始执行');
     try {
       const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/admin/users`;
-      console.log('🔍 [AdminPage] 请求URL:', apiUrl);
       const res = await authFetch(apiUrl);
-      console.log('🔍 [AdminPage] API响应状态:', res.status, res.ok);
       
       if (res.ok) {
         const data = await res.json();
-        console.log('🔍 [AdminPage] API返回数据:', data);
-        console.log('🔍 [AdminPage] data.success:', data.success, 'data.data是数组:', Array.isArray(data.data));
         if (data.success && Array.isArray(data.data)) {
-          console.log('🔍 [AdminPage] 用户数量:', data.data.length);
-          if (data.data.length > 0) {
-            console.log('🔍 [AdminPage] 第一个用户数据:', data.data[0]);
-            console.log('🔍 [AdminPage] 第一个用户的last_login:', data.data[0].last_login);
-            console.log('🔍 [AdminPage] 第一个用户的points:', data.data[0].points, '类型:', typeof data.data[0].points);
-          }
           const usersFromApi: User[] = data.data.map((u: any) => {
             // 确保points是数字类型，处理null、undefined、字符串等情况
             let points = 0;
@@ -101,6 +89,15 @@ const AdminPage: React.FC = () => {
               }
             }
             
+            // 处理 IP 地址：优先显示 last_login_ip，如果没有则显示 register_ip，都没有则显示'未知'
+            // 同时处理 IPv6 格式的本地地址（::ffff:127.0.0.1 -> 127.0.0.1）和 'unknown' 值
+            let ipAddress = '未知';
+            if (u.last_login_ip && u.last_login_ip !== 'unknown' && u.last_login_ip !== null) {
+              ipAddress = String(u.last_login_ip).replace(/^::ffff:/, ''); // 移除 IPv6 映射前缀
+            } else if (u.register_ip && u.register_ip !== 'unknown' && u.register_ip !== null) {
+              ipAddress = String(u.register_ip).replace(/^::ffff:/, ''); // 移除 IPv6 映射前缀
+            }
+            
             return {
               id: u.id,
               username: u.username,
@@ -113,24 +110,17 @@ const AdminPage: React.FC = () => {
               isAdmin: !!u.is_admin,
               roles: u.roles || [],
               lastLogin: lastLogin,
-              ipAddress: u.last_login_ip || u.register_ip || '未知'
+              ipAddress: ipAddress
             } as User;
           });
           
-          console.log('🔍 [AdminPage] 处理后的用户数据数量:', usersFromApi.length);
-          console.log('🔍 [AdminPage] 第一个处理后的用户:', usersFromApi[0]);
           setAllUsers(usersFromApi);
           setFilteredUsers(usersFromApi);
-          console.log('🔍 [AdminPage] 状态已更新，allUsers和filteredUsers已设置');
           return;
-        } else {
-          console.warn('🔍 [AdminPage] API返回数据格式不正确:', data);
         }
-      } else {
-        console.warn('🔍 [AdminPage] API请求失败，状态码:', res.status);
       }
     } catch (e) {
-      console.error('🔍 [AdminPage] 获取用户列表失败:', e);
+      console.error('获取用户列表失败:', e);
     }
 
     // 回退数据
@@ -152,7 +142,6 @@ const AdminPage: React.FC = () => {
 
   // 加载所有用户数据和网站统计
   useEffect(() => {
-    console.log('🔍 [AdminPage] useEffect 执行，开始加载用户数据');
     loadAllUsers();
     loadWebsiteStats();
     
@@ -472,7 +461,6 @@ const AdminPage: React.FC = () => {
                   </thead>
                   <tbody>
                     {(() => {
-                      console.log('🔍 [AdminPage] 渲染表格，filteredUsers.length:', filteredUsers.length, 'allUsers.length:', allUsers.length);
                       if (filteredUsers.length > 0) {
                         return filteredUsers.map((user) => (
                       <tr key={user.id} className="border-b border-surface/10 hover:bg-surface-variant/5">

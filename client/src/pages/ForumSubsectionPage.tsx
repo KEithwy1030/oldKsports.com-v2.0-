@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Plus, MessageSquare, Eye, Calendar, Clock, ArrowLeft, Coffee, Briefcase, AlertTriangle, Heart } from 'lucide-react';
+import { Plus, MessageSquare, Eye, Calendar, Clock, ArrowLeft, Coffee, Briefcase, AlertTriangle, Heart, Pin } from 'lucide-react';
 import UserLevelBadge from '../components/UserLevelBadge';
 import PageTransition from '../components/PageTransition';
 import { useAuth } from '../context/AuthContext';
@@ -159,9 +159,18 @@ const ForumSubsectionPage: React.FC = () => {
                       )}
                   </div>
                     
-                  <h3 className="text-lg font-semibold text-white mb-3 group-hover:text-emerald-400 transition-colors">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <h3 className="text-lg font-semibold text-white group-hover:text-emerald-400 transition-colors">
                       {post.title}
-                  </h3>
+                    </h3>
+                    {/* 置顶标识 */}
+                    {post.is_sticky && (
+                      <span className="inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                        <Pin className="w-3 h-3" />
+                        <span>置顶</span>
+                      </span>
+                    )}
+                  </div>
                     
                   <div className="text-gray-300 text-sm mb-4 line-clamp-2 leading-relaxed">
                     <HtmlContent 

@@ -235,7 +235,7 @@ export const login = async (req, res) => {
                             // 不阻止登录，只记录错误
                             resolve();
                         } else {
-                            console.log('✅ last_login和last_login_ip已更新:', user.id, clientIp);
+                            // IP地址已更新
                             // 获取更新后的last_login
                             db.query(
                                 'SELECT last_login FROM users WHERE id = ?',
