@@ -33,12 +33,13 @@ interface Post {
   is_sticky?: boolean;
   is_locked?: boolean;
   author_id?: number;
-  replies: Array<{
+  replies?: Array<{
     id: number;
     author: string;
     content: string;
     createdAt: string;
   }>;
+  reply_count?: number; // 后端返回的回复数量
 }
 
 type SubforumStats = {
@@ -373,11 +374,17 @@ const ForumPage: React.FC = () => {
           const rawLocked = post.is_locked;
           const isLocked = rawLocked === 1 || rawLocked === true || rawLocked === '1' || rawLocked === 'true';
           
+          // 处理回复数量：后端返回 reply_count（数字），需要映射到 replies 数组
+          const replyCount = post.reply_count || 0;
+          const repliesArray = Array.isArray(post.replies) ? post.replies : (replyCount > 0 ? Array(replyCount).fill(null) : []);
+          
           // 创建新对象，确保 is_sticky 和 is_locked 被正确设置为布尔值
           const processed = {
             ...post,
             is_sticky: Boolean(isSticky),
-            is_locked: Boolean(isLocked)
+            is_locked: Boolean(isLocked),
+            replies: repliesArray,
+            reply_count: replyCount // 保留原始 reply_count 以便后续使用
           };
           
           return processed;
@@ -1166,7 +1173,7 @@ const ForumPage: React.FC = () => {
                               <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 text-sm">
                                 <span className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-800/50 px-3 py-1 rounded-full text-gray-700 dark:text-gray-300">
                                         <MessageSquare className="w-4 h-4" />
-                                  <span className="font-medium">{post.replies?.length || 0} 条回复</span>
+                                  <span className="font-medium">{(post.reply_count !== undefined ? post.reply_count : (post.replies?.length || 0))} 条回复</span>
                                       </span>
                                     </div>
                                     {(() => {
