@@ -206,19 +206,43 @@ app.post("/api/upload/images", upload.array('images', 9), (req, res) => {
       });
     }
 
-    const uploadedFiles = req.files.map(file => {
-      // 复制文件到public目录，供前端访问
-      const publicPath = nodePath.join(publicUploadsDir, file.filename);
-      fs.copyFileSync(file.path, publicPath);
-      
-      return {
-        filename: file.filename,
-        originalName: file.originalname,
-        path: `/uploads/images/${file.filename}`,
-        size: file.size,
-        mimetype: file.mimetype
-      };
-    });
+    const uploadedFiles = [];
+    for (const file of req.files) {
+      try {
+        // 确保目标目录存在
+        if (!fs.existsSync(publicUploadsDir)) {
+          fs.mkdirSync(publicUploadsDir, { recursive: true });
+        }
+        
+        // 复制文件到public目录，供前端访问
+        const publicPath = nodePath.join(publicUploadsDir, file.filename);
+        
+        // 检查源文件是否存在
+        if (!fs.existsSync(file.path)) {
+          throw new Error(`源文件不存在: ${file.path}`);
+        }
+        
+        fs.copyFileSync(file.path, publicPath);
+        
+        // 验证复制是否成功
+        if (!fs.existsSync(publicPath)) {
+          throw new Error(`文件复制失败: ${publicPath}`);
+        }
+        
+        uploadedFiles.push({
+          filename: file.filename,
+          originalName: file.originalname,
+          path: `/uploads/images/${file.filename}`,
+          size: file.size,
+          mimetype: file.mimetype
+        });
+      } catch (fileError) {
+        console.error(`处理文件 ${file.filename} 时出错:`, fileError);
+        // 如果单个文件失败，记录错误但继续处理其他文件
+        // 如果所有文件都失败，会在外层catch中处理
+        throw new Error(`文件 ${file.originalname} 处理失败: ${fileError.message}`);
+      }
+    }
 
     res.json({
       success: true,
@@ -230,7 +254,8 @@ app.post("/api/upload/images", upload.array('images', 9), (req, res) => {
     console.error('图片上传错误:', error);
     res.status(500).json({
       success: false,
-      error: "图片上传失败"
+      error: error.message || "图片上传失败",
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
@@ -245,9 +270,25 @@ app.post("/api/upload", upload.single('image'), (req, res) => {
       });
     }
 
+    // 确保目标目录存在
+    if (!fs.existsSync(publicUploadsDir)) {
+      fs.mkdirSync(publicUploadsDir, { recursive: true });
+    }
+    
     // 复制文件到public目录，供前端访问
     const publicPath = nodePath.join(publicUploadsDir, req.file.filename);
+    
+    // 检查源文件是否存在
+    if (!fs.existsSync(req.file.path)) {
+      throw new Error(`源文件不存在: ${req.file.path}`);
+    }
+    
     fs.copyFileSync(req.file.path, publicPath);
+    
+    // 验证复制是否成功
+    if (!fs.existsSync(publicPath)) {
+      throw new Error(`文件复制失败: ${publicPath}`);
+    }
     
     res.json({
       success: true,
@@ -258,7 +299,8 @@ app.post("/api/upload", upload.single('image'), (req, res) => {
     console.error('图片上传错误:', error);
     res.status(500).json({
       success: false,
-      error: "图片上传失败"
+      error: error.message || "图片上传失败",
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });

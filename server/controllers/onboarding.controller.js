@@ -19,7 +19,8 @@ export const getOnboardingStatus = async (req, res) => {
     console.error('🎯 获取新手引导状态失败:', error);
     res.status(500).json({
       success: false,
-      error: '获取新手引导状态失败'
+      error: error.message || '获取新手引导状态失败',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };

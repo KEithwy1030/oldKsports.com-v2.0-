@@ -162,13 +162,42 @@ class OnboardingService {
       let completedTasks = [];
       
       try {
+        // 首先检查表是否存在
+        const tableCheckQuery = `
+          SELECT COUNT(*) as count 
+          FROM information_schema.tables 
+          WHERE table_schema = DATABASE() 
+          AND table_name = 'onboarding_tasks'
+        `;
+        
+        const tableExists = await new Promise((resolve, reject) => {
+          db.query(tableCheckQuery, (err, results) => {
+            if (err) {
+              console.error('检查onboarding_tasks表是否存在时出错:', err);
+              reject(err);
+            } else {
+              resolve(results && results[0] && results[0].count > 0);
+            }
+          });
+        });
+        
+        if (!tableExists) {
+          console.error('onboarding_tasks表不存在，需要初始化数据库');
+          throw new Error('onboarding_tasks表不存在，请检查数据库初始化脚本');
+        }
+        
         // 查询已完成的任务，包括进度信息
         const taskQuery = 'SELECT task_id, progress, target, completed_at FROM onboarding_tasks WHERE user_id = ?';
         completedTasks = await new Promise((resolve, reject) => {
           db.query(taskQuery, [userId], (err, results) => {
             if (err) {
               console.error('查询已完成任务失败:', err);
-              reject(err);
+              // 检查是否是表结构问题
+              if (err.code === 'ER_BAD_FIELD_ERROR' || err.code === 'ER_NO_SUCH_TABLE') {
+                reject(new Error(`数据库表结构错误: ${err.message}`));
+              } else {
+                reject(err);
+              }
             } else {
               resolve(results || []);
             }
@@ -176,8 +205,8 @@ class OnboardingService {
         });
       } catch (error) {
         console.error('处理onboarding_tasks表时出错:', error);
-        // 如果出错，使用空数组继续执行
-        completedTasks = [];
+        // 不再静默失败，抛出错误让调用者知道问题
+        throw new Error(`获取新手引导任务状态失败: ${error.message}`);
       }
 
       const completedTaskIds = completedTasks.map(task => task.task_id);
