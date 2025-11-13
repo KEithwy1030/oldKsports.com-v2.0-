@@ -211,9 +211,75 @@ class OnboardingService {
 
       const completedTaskIds = completedTasks.map(task => task.task_id);
       
+      // 自动检测并更新任务完成状态（简单方案：实时检测未完成的任务）
+      for (const task of OnboardingService.TASKS) {
+        // 跳过注册任务（已自动完成）
+        if (task.id === 'complete_registration') continue;
+        
+        // 如果数据库中没有完成记录，实时检测是否已完成
+        if (!completedTaskIds.includes(task.id)) {
+          try {
+            const isActuallyCompleted = await this.checkTaskCompletion(userId, task.id);
+            
+            // 如果检测到已完成，自动更新数据库
+            if (isActuallyCompleted) {
+              console.log(`🎯 自动检测到任务 ${task.id} 已完成，正在更新数据库...`);
+              await this.completeOnboardingTask(userId, task.id);
+              
+              // 更新本地记录，避免重复检测
+              if (task.type === 'repeatable' && task.target) {
+                // 可重复任务：需要重新查询进度
+                const updatedTask = await new Promise((resolve, reject) => {
+                  db.query('SELECT progress, target, completed_at FROM onboarding_tasks WHERE user_id = ? AND task_id = ?', 
+                    [userId, task.id], (err, results) => {
+                      if (err) reject(err);
+                      else resolve(results[0] || null);
+                    });
+                });
+                if (updatedTask) {
+                  completedTasks.push({
+                    task_id: task.id,
+                    progress: updatedTask.progress,
+                    target: updatedTask.target,
+                    completed_at: updatedTask.completed_at
+                  });
+                }
+              } else {
+                // 普通任务：直接添加到完成列表
+                completedTasks.push({
+                  task_id: task.id,
+                  progress: 1,
+                  target: 1,
+                  completed_at: new Date()
+                });
+                completedTaskIds.push(task.id);
+              }
+            }
+          } catch (error) {
+            console.error(`🎯 自动检测任务 ${task.id} 失败:`, error);
+            // 检测失败不影响主流程，继续执行
+          }
+        }
+      }
+      
+      // 重新获取最新的完成状态（因为可能刚刚自动更新了）
+      const updatedCompletedTasks = await new Promise((resolve, reject) => {
+        db.query('SELECT task_id, progress, target, completed_at FROM onboarding_tasks WHERE user_id = ?', 
+          [userId], (err, results) => {
+            if (err) {
+              console.error('重新查询已完成任务失败:', err);
+              resolve(completedTasks); // 使用之前的记录
+            } else {
+              resolve(results || []);
+            }
+          });
+      });
+      
+      const finalCompletedTaskIds = updatedCompletedTasks.map(task => task.task_id);
+      
       // 构建任务状态
       const tasks = OnboardingService.TASKS.map(task => {
-        const completedTask = completedTasks.find(ct => ct.task_id === task.id);
+        const completedTask = updatedCompletedTasks.find(ct => ct.task_id === task.id);
         
         // 处理不同类型的任务
         if (task.type === 'repeatable' && task.target) {
@@ -231,7 +297,7 @@ class OnboardingService {
           };
         } else {
           // 普通任务：检查是否已完成
-          const isCompleted = task.id === 'complete_registration' || completedTaskIds.includes(task.id);
+          const isCompleted = task.id === 'complete_registration' || finalCompletedTaskIds.includes(task.id);
           
           return {
             ...task,
