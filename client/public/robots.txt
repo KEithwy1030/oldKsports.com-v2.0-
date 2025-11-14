@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+# 防止搜索引擎索引重复的公共上传路径
+Disallow: /public/uploads/
+
+Sitemap: https://www.oldksports.com/sitemap.xml
+

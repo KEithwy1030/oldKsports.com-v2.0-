@@ -69,6 +69,11 @@ npm start
 2. 配置环境变量
 3. 自动构建和部署
 
+### SEO 与 Search Console
+- `client/public/robots.txt`：允许搜索引擎抓取论坛页面并声明站点地图，请保持 `Sitemap: https://www.oldksports.com/sitemap.xml` 行与线上域名一致。
+- `client/public/sitemap.xml`：包含首页、论坛分类、商家/黑榜/文章等核心 URL，更新导航或新增专题后记得补充。
+- 部署前端后，访问 `https://www.oldksports.com/robots.txt` 与 `https://www.oldksports.com/sitemap.xml` 以确认文件同步，再去 Google Search Console 的 “站点地图” 页面提交。
+
 ### 环境变量
 ```env
 # 数据库配置
