@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { forumAPI, userAPI } from '../utils/api';
@@ -49,16 +49,37 @@ type SubforumStats = {
   latestPost: string;
 };
 
+const CATEGORY_PARAM_KEY = 'category';
+
 const ForumPage: React.FC = () => {
   const { user, refreshUserData } = useAuth();
   const { openChatWith } = useChat();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const validCategoryIds = useMemo(() => {
+    const ids = new Set<string>(['all']);
+    FORUM_CATEGORIES.forEach((cat) => {
+      if (cat.id) {
+        ids.add(cat.id);
+      }
+    });
+    return ids;
+  }, []);
+  const normalizeCategory = useCallback(
+    (value: string | null) => {
+      if (!value) return 'all';
+      return validCategoryIds.has(value) ? value : 'all';
+    },
+    [validCategoryIds]
+  );
   
   const [posts, setPosts] = useState<Post[]>([]);
   const [subforumStats, setSubforumStats] = useState<Record<string, SubforumStats>>({});
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{visible: boolean; message: string; type: 'success' | 'error' | 'info' | 'points' | 'levelup'}>({ visible: false, message: '', type: 'info' });
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>(() =>
+    normalizeCategory(searchParams.get(CATEGORY_PARAM_KEY))
+  );
   
   // 监听升级事件
   useEffect(() => {
@@ -88,6 +109,28 @@ const ForumPage: React.FC = () => {
   const [showPostForm, setShowPostForm] = useState(false);
   const [editingPostId, setEditingPostId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const normalized = normalizeCategory(searchParams.get(CATEGORY_PARAM_KEY));
+    if (normalized !== selectedCategory) {
+      setSelectedCategory(normalized);
+    }
+  }, [searchParams, normalizeCategory, selectedCategory]);
+
+  const updateCategorySelection = useCallback(
+    (nextCategory: string) => {
+      const normalizedNext = normalizeCategory(nextCategory);
+      setSelectedCategory(normalizedNext);
+      const params = new URLSearchParams(searchParams);
+      if (normalizedNext === 'all') {
+        params.delete(CATEGORY_PARAM_KEY);
+      } else {
+        params.set(CATEGORY_PARAM_KEY, normalizedNext);
+      }
+      setSearchParams(params, { replace: false });
+    },
+    [normalizeCategory, searchParams, setSearchParams]
+  );
 
   // 切换发帖类别
   const togglePostCategory = () => {
@@ -786,9 +829,9 @@ const ForumPage: React.FC = () => {
                       onClick={() => {
                         // 如果点击的是已选中的子版块，则取消选择（恢复到显示全部）
                         if (selectedCategory === subforum.category) {
-                          setSelectedCategory('all');
+                          updateCategorySelection('all');
                         } else {
-                          setSelectedCategory(subforum.category);
+                          updateCategorySelection(subforum.category);
                         }
                       }}
                       className={`${colors.bg} backdrop-blur-sm rounded-xl border border-gray-200 dark:border-slate-600/50 p-4 h-64 flex flex-col justify-between transition-all duration-300 cursor-pointer group ${

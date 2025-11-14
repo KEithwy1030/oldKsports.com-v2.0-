@@ -15,6 +15,9 @@ COPY database_init_schema.sql ../
 # 复制后端代码
 COPY server/ ./
 
+# 创建上传目录（确保目录存在，避免运行时创建失败）
+RUN mkdir -p ./uploads/images && mkdir -p ./public/uploads/images
+
 EXPOSE 8080
 
 CMD ["npm", "start"]
