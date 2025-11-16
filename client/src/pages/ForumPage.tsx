@@ -774,6 +774,66 @@ const ForumPage: React.FC = () => {
 
             {/* 中间内容区域 */}
             <div className="col-span-12 lg:col-span-6">
+            {/* 移动端当前在线（放在较靠上位置） */}
+              <div className="md:hidden mb-4">
+                <div className="bg-white dark:bg-white/10 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-white/20 p-4">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-3">当前在线</h3>
+                  <div className="space-y-2">
+                    {onlineUsers.length > 0 ? (
+                      onlineUsers.map((user) => (
+                        <div key={user.id} className="flex items-center space-x-3">
+                          <RealTimeAvatar 
+                            user={user} 
+                            size="sm"
+                            className="w-8 h-8"
+                          />
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">{user.username}</div>
+                            <div className="flex flex-wrap gap-1">
+                              {(() => {
+                                const renderPill = (label: string) => (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-400/30" key={label}>
+                                    {label}
+                                  </span>
+                                );
+
+                                if (Array.isArray(user.roles) && user.roles.length > 0) {
+                                  const labels = user.roles
+                                    .map((rid: string) => INDUSTRY_ROLES.find(r => r.id === rid)?.label)
+                                    .filter(Boolean) as string[];
+                                  if (labels.length > 0) return labels.slice(0, 3).map(renderPill);
+                                }
+
+                                if (user.role) {
+                                  const s = (user.role || '').toString().trim().toLowerCase();
+                                  const dict: Record<string, string> = {
+                                    '主播': '主播', 'anchor': '主播', 'streamer': '主播',
+                                    '甲方': '甲方', 'party a': '甲方', 'partya': '甲方', 'party_a': '甲方', 'client': '甲方', '客户': '甲方',
+                                    '服务商': '服务商', 'service': '服务商', 'provider': '服务商', 'vendor': '服务商',
+                                    '其他': '其他', 'other': '其他', 'user': '其他', '普通用户': '其他'
+                                  };
+                                  const label = dict[s] || dict[s.replace(/\s+/g, '')] || '其他';
+                                  return renderPill(label);
+                                }
+
+                                return renderPill('其他');
+                              })()}
+                            </div>
+                          </div>
+                          <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center text-gray-600 dark:text-gray-400 text-sm py-4">
+                        暂无在线用户
+                      </div>
+                    )}
+                    <div className="text-center text-xs text-gray-500 dark:text-gray-500 mt-2">
+                      共 {totalOnlineUsers} 人在线
+                    </div>
+                  </div>
+                </div>
+              </div>
             {/* 子版块选择 */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 {subforums.map((subforum) => {
@@ -1345,8 +1405,8 @@ const ForumPage: React.FC = () => {
                                   </div>
                                 </div>
                                 
-                {/* 当前在线 */}
-                <div className="bg-white dark:bg-white/10 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-white/20 p-4">
+                {/* 当前在线 - 仅桌面端显示，移动端用单独模块 */}
+                <div className="hidden md:block bg-white dark:bg-white/10 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-white/20 p-4">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-3">当前在线</h3>
                   <div className="space-y-2">
                     {onlineUsers.length > 0 ? (
