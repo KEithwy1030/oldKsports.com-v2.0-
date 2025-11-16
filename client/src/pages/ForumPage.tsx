@@ -251,34 +251,6 @@ const ForumPage: React.FC = () => {
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
   const [totalOnlineUsers, setTotalOnlineUsers] = useState(0);
 
-  // 在线用户兜底数据（接口异常或返回为空时，用于展示代表性用户，避免一直空白）
-  const FALLBACK_ONLINE_USERS = [
-    {
-      id: -1,
-      username: '老k',
-      avatar: null,
-      points: 0,
-      roles: ['expert'],
-      role: '体育达人',
-    },
-    {
-      id: -2,
-      username: '客服机器人',
-      avatar: null,
-      points: 0,
-      roles: ['service'],
-      role: '服务商',
-    },
-    {
-      id: -3,
-      username: 'qqhs4444',
-      avatar: null,
-      points: 0,
-      roles: ['business'],
-      role: '甲方',
-    },
-  ];
-
   const categories = FORUM_CATEGORIES;
   
   // 帖子分类映射（数据库ID -> 显示名称）
@@ -339,30 +311,21 @@ const ForumPage: React.FC = () => {
         const users = response.data.users || [];
         const total = response.data.totalOnline || users.length || 0;
 
-        if (users.length > 0) {
-          setOnlineUsers(users);
-          setTotalOnlineUsers(total);
-          debugLog('✅ 今日在线用户加载成功:', { 
-            users: users.length, 
-            total 
-          });
-        } else {
-          // 接口返回成功但列表为空：使用兜底数据，至少展示几个代表用户
-          debugLog('ℹ️ 在线用户接口返回为空，使用兜底数据');
-          setOnlineUsers(FALLBACK_ONLINE_USERS);
-          setTotalOnlineUsers(FALLBACK_ONLINE_USERS.length);
-        }
+        setOnlineUsers(users);
+        setTotalOnlineUsers(total);
+        debugLog('✅ 今日在线用户加载成功:', { 
+          users: users.length, 
+          total 
+        });
       } else {
-        // success 标记不为 true：使用兜底数据
-        debugLog('⚠️ 在线用户接口 success != true，使用兜底数据', response);
-        setOnlineUsers(FALLBACK_ONLINE_USERS);
-        setTotalOnlineUsers(FALLBACK_ONLINE_USERS.length);
+        debugLog('⚠️ 在线用户接口 success != true', response);
+        setOnlineUsers([]);
+        setTotalOnlineUsers(0);
       }
     } catch (error) {
       console.error('❌ 加载今日在线用户失败:', error);
-      // 接口报错时也使用兜底数据，避免一直显示“暂无在线用户”
-      setOnlineUsers(FALLBACK_ONLINE_USERS);
-      setTotalOnlineUsers(FALLBACK_ONLINE_USERS.length);
+      setOnlineUsers([]);
+      setTotalOnlineUsers(0);
         }
   }, []);
 
